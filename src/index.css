@@ -1,4 +1,65 @@
-/* Cleared out old dark-mode styles to prevent clashing with the Stitch Light Theme */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* === DocuReader AI Design System === */
+
+@layer base {
+  * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+  ::selection { background: rgba(79, 70, 229, 0.15); }
+}
+
+@layer utilities {
+  .glass { backdrop-filter: blur(20px); background: rgba(255,255,255,0.72); }
+  .glass-dark { backdrop-filter: blur(24px); background: rgba(15,23,42,0.85); }
+  .text-gradient { background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .shadow-glow { box-shadow: 0 0 60px -12px rgba(79, 70, 229, 0.25); }
+  .shadow-glow-sm { box-shadow: 0 0 30px -8px rgba(79, 70, 229, 0.15); }
+}
+
+/* Animations */
+@keyframes float { 0%,100% { transform: translateY(0px); } 50% { transform: translateY(-8px); } }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideIn { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+@keyframes pulse-ring { 0% { transform: scale(0.8); opacity: 1; } 100% { transform: scale(2); opacity: 0; } }
+@keyframes toast-in { from { opacity: 0; transform: translateY(16px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes toast-out { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(16px) scale(0.96); } }
+
+.animate-float { animation: float 3s ease-in-out infinite; }
+.animate-fadeUp { animation: fadeUp 0.6s ease-out forwards; }
+.animate-fadeIn { animation: fadeIn 0.4s ease-out forwards; }
+.animate-slideIn { animation: slideIn 0.4s ease-out forwards; }
+.animate-scaleIn { animation: scaleIn 0.3s ease-out forwards; }
+.animate-shimmer { background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.4) 50%, transparent 75%); background-size: 200% 100%; animation: shimmer 2s infinite; }
+.animate-toast-in { animation: toast-in 0.3s ease-out forwards; }
+.animate-toast-out { animation: toast-out 0.25s ease-in forwards; }
+
+/* Stagger children */
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: 80ms; }
+.stagger > *:nth-child(3) { animation-delay: 160ms; }
+.stagger > *:nth-child(4) { animation-delay: 240ms; }
+.stagger > *:nth-child(5) { animation-delay: 320ms; }
+.stagger > *:nth-child(6) { animation-delay: 400ms; }
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* Input focus ring */
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+}
+
+/* Strikethrough price */
+.price-original {
+  text-decoration: line-through;
+  text-decoration-color: #ef4444;
+  text-decoration-thickness: 2px;
+}
