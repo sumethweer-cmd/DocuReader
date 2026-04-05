@@ -45,6 +45,19 @@ function AppContent() {
     })
     fetchPricing()
     fetchUseCases()
+    
+    // Check for payment status in URL
+    const urlParams = new URLSearchParams(window.location.search)
+    if (urlParams.get('payment') === 'success') {
+      window.history.replaceState({}, '', window.location.pathname)
+      // Usually would show a toast here, but Toast is inside AppContent
+      // We will set a small timeout for toast to appear
+      setTimeout(() => alert('ชำระเงินสำเร็จ! กำลังปรับปรุงข้อมูลเครดิตของคุณ (อาจใช้เวลา 1-2 นาที)'), 500)
+    } else if (urlParams.get('payment') === 'canceled') {
+      window.history.replaceState({}, '', window.location.pathname)
+      setTimeout(() => alert('ยกเลิกการชำระเงินแล้ว'), 500)
+    }
+
     return () => subscription.unsubscribe()
   }, [])
 
@@ -160,7 +173,7 @@ function AppContent() {
     <div className="font-body min-h-screen bg-white">
       <Navbar view={view} setView={setView} session={session} userProfile={userProfile} setAuthMode={setAuthMode} onSignOut={handleSignOut} />
       <div className="animate-fadeIn">
-        {view === 'landing' && <LandingPage pricingPlans={pricingPlans} useCases={useCases} setView={setView} />}
+        {view === 'landing' && <LandingPage pricingPlans={pricingPlans} useCases={useCases} setView={setView} userProfile={userProfile} />}
         {view === 'auth' && <AuthView authMode={authMode} setAuthMode={setAuthMode} handleAuth={handleAuth} email={email} setEmail={setEmail} password={password} setPassword={setPassword} fullName={fullName} setFullName={setFullName} phone={phone} setPhone={setPhone} authLoading={authLoading} message={message} />}
         {view === 'dashboard' && (session ? <DashboardView userProfile={userProfile} setView={setView} refreshProfile={() => fetchProfile((session as { user: { id: string } }).user.id)} /> : <AuthView authMode={authMode} setAuthMode={setAuthMode} handleAuth={handleAuth} email={email} setEmail={setEmail} password={password} setPassword={setPassword} fullName={fullName} setFullName={setFullName} phone={phone} setPhone={setPhone} authLoading={authLoading} message={message} />)}
         {view === 'admin' && <AdminView aiConfigs={aiConfigs} apiKey={apiKey} setApiKey={setApiKey} stripeSecret={stripeSecret} setStripeSecret={setStripeSecret} stripePublishable={stripePublishable} setStripePublishable={setStripePublishable} toggleModel={toggleModel} updateSystemConfigs={updateSystemConfigs} setView={setView} useCaseTitle={useCaseTitle} setUseCaseTitle={setUseCaseTitle} useCaseDesc={useCaseDesc} setUseCaseDesc={setUseCaseDesc} addUseCase={addUseCase} isAddingUseCase={isAddingUseCase} stats={stats} pricingPlans={pricingPlans} refreshPricing={fetchPricing} />}

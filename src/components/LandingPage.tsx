@@ -1,12 +1,56 @@
-import { Zap, CheckCircle2, PlayCircle, Upload, Settings, Download, FileText, Shield, Brain, Globe, Mail, ArrowRight } from 'lucide-react'
-import type { PricingPlan, UseCase, View } from '../types'
+import { useState } from 'react'
+import { Zap, CheckCircle2, PlayCircle, Upload, Settings, Download, FileText, Shield, Brain, Globe, Mail, ArrowRight, Loader2 } from 'lucide-react'
+import type { PricingPlan, UseCase, View, UserProfile } from '../types'
 import Footer from './Footer'
+import { supabase } from '../lib/supabase'
 
-type Props = { pricingPlans: PricingPlan[]; useCases: UseCase[]; setView: (v: View) => void }
+type Props = { pricingPlans: PricingPlan[]; useCases: UseCase[]; setView: (v: View) => void; userProfile?: UserProfile | null }
 
-export default function LandingPage({ pricingPlans, useCases, setView }: Props) {
+export default function LandingPage({ pricingPlans, useCases, setView, userProfile }: Props) {
   const paidPlans = pricingPlans.filter(p => !p.is_contact_only).sort((a, b) => a.sort_order - b.sort_order)
   const customPlan = pricingPlans.find(p => p.is_contact_only)
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null)
+
+  const handleCheckout = async (plan: PricingPlan) => {
+    if (plan.price_amount === 0) {
+      setView('auth')
+      return
+    }
+    
+    if (!userProfile) {
+      setView('auth') // User must log in to buy
+      return
+    }
+
+    try {
+      setCheckoutLoading(plan.id)
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
+        body: JSON.stringify({ 
+          planId: plan.id, 
+          returnUrl: window.location.origin 
+        })
+      })
+
+      const data = await res.json()
+      if (data.url) {
+        window.location.href = data.url
+      } else {
+        alert(data.error || 'Checkout failed')
+      }
+    } catch (err) {
+      console.error(err)
+      alert('Error connecting to payment gateway')
+    } finally {
+      setCheckoutLoading(null)
+    }
+  }
 
   return (
     <main className="pt-16">
@@ -156,7 +200,8 @@ export default function LandingPage({ pricingPlans, useCases, setView }: Props) 
                       </li>
                     ))}
                   </ul>
-                  <button onClick={() => setView('auth')} className={`w-full py-3.5 rounded-2xl font-bold text-sm transition-all active:scale-95 ${isPopular ? 'bg-white text-indigo-600 hover:bg-indigo-50 shadow-lg' : 'bg-slate-900 text-white hover:bg-slate-800'}`}>
+                  <button onClick={() => handleCheckout(plan)} disabled={checkoutLoading === plan.id} className={`w-full py-3.5 rounded-2xl font-bold text-sm transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-70 ${isPopular ? 'bg-white text-indigo-600 hover:bg-indigo-50 shadow-lg' : 'bg-slate-900 text-white hover:bg-slate-800'}`}>
+                    {checkoutLoading === plan.id ? <Loader2 size={16} className="animate-spin" /> : null}
                     {plan.price_amount === 0 ? 'เริ่มต้นฟรี' : 'สั่งซื้อตอนนี้'}
                   </button>
                 </div>
