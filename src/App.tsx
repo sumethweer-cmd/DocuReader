@@ -178,7 +178,7 @@ const AuthView = ({ authMode, setAuthMode, handleAuth, email, setEmail, password
   </div>
 )
 
-const AdminView = ({ aiConfigs, apiKey, setApiKey, stripeSecret, setStripeSecret, stripePublishable, setStripePublishable, toggleModel, updateSystemConfigs, useCases, setView, useCaseTitle, setUseCaseTitle, useCaseDesc, setUseCaseDesc, addUseCase, isAddingUseCase, stats }: {
+const AdminView = ({ aiConfigs, apiKey, setApiKey, stripeSecret, setStripeSecret, stripePublishable, setStripePublishable, toggleModel, updateSystemConfigs, setView, useCaseTitle, setUseCaseTitle, useCaseDesc, setUseCaseDesc, addUseCase, isAddingUseCase, stats }: {
   aiConfigs: AIConfig[],
   apiKey: string,
   setApiKey: (v: string) => void,
