@@ -73,7 +73,7 @@ export default function LandingPage({ pricingPlans, useCases, setView }: Props) 
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <p className="text-rose-500 font-black uppercase tracking-[0.2em] text-[10px] mb-3">FEATURES</p>
-            <h2 className="text-3xl md:text-5xl font-headline font-black tracking-tight text-slate-900">ทำไมต้อง DocuReader AI?</h2>
+            <h2 className="text-3xl md:text-5xl font-headline font-black tracking-tight text-slate-900">ทำไมต้อง P-Admin?</h2>
           </div>
           <div className="grid md:grid-cols-3 gap-6 stagger">
             {[

@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* === DocuReader AI Design System === */
+/* === P-Admin Design System === */
 
 @layer base {
   * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }

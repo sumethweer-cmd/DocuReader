@@ -9,7 +9,7 @@ export default function Footer({ setView }: { setView: (v: View) => void }) {
           <div className="md:col-span-2">
             <div className="flex items-center gap-2.5 mb-4">
               <div className="w-9 h-9 bg-indigo-500 rounded-xl flex items-center justify-center text-white"><FileText size={18} /></div>
-              <span className="text-xl font-bold font-headline tracking-tighter">DocuReader<span className="text-indigo-400 font-black">AI</span></span>
+              <span className="text-xl font-bold font-headline tracking-tighter">P-<span className="text-indigo-400 font-black">Admin</span></span>
             </div>
             <p className="text-slate-400 text-sm leading-relaxed max-w-md font-body">ระบบอ่านเอกสารอัตโนมัติด้วย AI สกัดข้อมูลจากเอกสารทุกประเภทให้เป็นตาราง CSV หรือส่งตรงไป Google Sheets ได้ทันที</p>
           </div>
@@ -30,7 +30,7 @@ export default function Footer({ setView }: { setView: (v: View) => void }) {
           </div>
         </div>
         <div className="border-t border-slate-800 pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-xs text-slate-500">© {new Date().getFullYear()} DocuReader AI. All rights reserved.</p>
+          <p className="text-xs text-slate-500">© {new Date().getFullYear()} P-Admin. All rights reserved.</p>
           <div className="flex gap-6">
             <a href="#" className="text-xs text-slate-500 hover:text-slate-300 transition-colors">Privacy Policy</a>
             <a href="#" className="text-xs text-slate-500 hover:text-slate-300 transition-colors">Terms of Service</a>

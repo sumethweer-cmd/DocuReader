@@ -1,4 +1,4 @@
-// Shared types across the DocuReader app
+// Shared types across the P-Admin app
 export type View = 'landing' | 'auth' | 'dashboard' | 'admin'
 export type AuthMode = 'login' | 'register'
 

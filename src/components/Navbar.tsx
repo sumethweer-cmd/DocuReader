@@ -21,7 +21,7 @@ export default function Navbar({ view, setView, session, userProfile, setAuthMod
           <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200 group-hover:shadow-indigo-300 transition-shadow">
             <span className="material-symbols-outlined text-lg">description</span>
           </div>
-          <span className="text-xl font-bold text-slate-900 font-headline tracking-tighter">DocuReader<span className="text-indigo-600 font-black">AI</span></span>
+          <span className="text-xl font-bold text-slate-900 font-headline tracking-tighter">P-<span className="text-indigo-600 font-black">Admin</span></span>
         </div>
 
         <nav className="hidden md:flex gap-1 items-center bg-slate-50/80 px-2 py-1 rounded-full border border-slate-100">
