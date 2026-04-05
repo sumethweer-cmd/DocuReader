@@ -2,9 +2,8 @@ import { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
 import { 
   FileText, CreditCard, X, Rocket, Shield, Key, Database, Zap, 
-  LogOut, Mail, Lock, CheckCircle2, AlertCircle, Loader2, Plus, Trash2, Save, Globe,
-  Table, Sparkles, Clock, Brain, RefreshCw, MessageCircle, PlayCircle, User, Settings, Phone, UserCircle2, ChevronDown, Coins,
-  TrendingUp, Users, BarChart3, Upload, Image as ImageIcon
+  LogOut, Mail, Lock, CheckCircle2, AlertCircle, Loader2, Plus, Save, Globe,
+  ChevronDown, Coins, TrendingUp, Users, Upload, Image as ImageIcon, PlayCircle, Phone, UserCircle2
 } from 'lucide-react'
 
 // --- Types ---
@@ -15,6 +14,9 @@ type AIConfig = {
   model_name: string
   is_active: boolean
   provider: string
+  api_key?: string
+  stripe_secret_key?: string
+  stripe_publishable_key?: string
 }
 type PricingPlan = {
   id: string
@@ -186,7 +188,6 @@ const AdminView = ({ aiConfigs, apiKey, setApiKey, stripeSecret, setStripeSecret
   setStripePublishable: (v: string) => void,
   toggleModel: (id: string) => void,
   updateSystemConfigs: () => void,
-  useCases: UseCase[],
   setView: (v: View) => void,
   useCaseTitle: string,
   setUseCaseTitle: (v: string) => void,
@@ -547,7 +548,7 @@ function App() {
 
   const uploadToSupabase = async (file: File) => {
     const fileName = `${Date.now()}-${file.name}`
-    const { data, error } = await supabase.storage.from('use_case_media').upload(fileName, file)
+    const { error } = await supabase.storage.from('use_case_media').upload(fileName, file)
     if (error) throw error
     const { data: { publicUrl } } = supabase.storage.from('use_case_media').getPublicUrl(fileName)
     return publicUrl
@@ -608,7 +609,7 @@ function App() {
             stripeSecret={stripeSecret} setStripeSecret={setStripeSecret} 
             stripePublishable={stripePublishable} setStripePublishable={setStripePublishable}
             toggleModel={toggleModel} updateSystemConfigs={updateSystemConfigs} 
-            useCases={useCases} setView={setView}
+            setView={setView}
             useCaseTitle={useCaseTitle} setUseCaseTitle={setUseCaseTitle}
             useCaseDesc={useCaseDesc} setUseCaseDesc={setUseCaseDesc}
             addUseCase={addUseCase} isAddingUseCase={isAddingUseCase}
