@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
+// Trigger redeploy with public repo visibility
 import { supabase } from './lib/supabase'
 import { 
   FileText, CreditCard, X, Rocket, Shield, Key, Database, Zap, 
