@@ -38,24 +38,33 @@ Deno.serve(async (req: Request) => {
         const { data: profile } = await adminSupabase.from('profiles').select('credits').eq('id', userId).single();
         const currentCredits = profile ? profile.credits : 0;
         
-        await adminSupabase.from('profiles').update({
+        const { error: profileError } = await adminSupabase.from('profiles').update({
           tier: tier.toLowerCase(),
           credits: currentCredits + creditsToAdd,
         }).eq('id', userId);
 
-        await adminSupabase.from('transactions').insert({
+        if (profileError) {
+          console.error('Profile update error:', profileError);
+          throw new Error('Failed to update profile');
+        }
+
+        const { error: txError } = await adminSupabase.from('transactions').insert({
           user_id: userId,
           amount: typeof session.amount_total === 'number' ? session.amount_total / 100 : 0,
           currency: session.currency || 'thb',
           status: 'completed',
-          payment_method: 'stripe_checkout',
-          transaction_id: session.id,
-          pricing_plan_id: planId,
+          plan_name: tier,
+          stripe_session_id: session.id
         });
+
+        if (txError) {
+          console.error('Transaction insert error:', txError);
+          throw new Error('Failed to record transaction');
+        }
 
         console.log(`Successfully upgraded user ${userId} to ${tier} with ${creditsToAdd} credits.`);
       } else {
-        console.error('Missing metadata in session');
+        console.error('Missing metadata in session:', session.metadata);
       }
     }
 
