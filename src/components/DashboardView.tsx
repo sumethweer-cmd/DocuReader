@@ -1,21 +1,20 @@
-import { useState, useEffect } from 'react'
-import { Coins, Plus, FileText, Upload, Download, X, Loader2, Copy, ExternalLink, CheckCircle2, Trash2, ArrowUp, ArrowDown, HelpCircle, Table } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Coins, Plus, FileText, Upload, Download, X, Loader2, Copy, ExternalLink, CheckCircle2, Trash2, ArrowUp, ArrowDown, HelpCircle, Table, Zap, AlertCircle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useToast } from './Toast'
-import type { View, UserProfile, ExtractionTemplate, TemplateColumn } from '../types'
+import type { View, UserProfile, ExtractionTemplate, TemplateColumn, Document } from '../types'
 
 type DashTab = 'upload' | 'templates' | 'history' | 'howto'
 
-// --- Preset Templates ---
 const PRESETS: { name: string; desc: string; columns: TemplateColumn[] }[] = [
   { name: 'ใบเสร็จ / Invoice', desc: 'สำหรับอ่านใบเสร็จรับเงินทั่วไป', columns: [{ name: 'เลขที่ใบเสร็จ', type: 'text' }, { name: 'วันที่', type: 'date' }, { name: 'ชื่อบริษัท', type: 'text' }, { name: 'ยอดรวม', type: 'currency' }] },
   { name: 'ใบแจ้งหนี้ / Bill', desc: 'สำหรับอ่านใบแจ้งหนี้ค่าบริการ', columns: [{ name: 'เลขที่เอกสาร', type: 'text' }, { name: 'วันครบกำหนด', type: 'date' }, { name: 'รายการ', type: 'text' }, { name: 'จำนวนเงิน', type: 'currency' }] },
   { name: 'บัตรประชาชน / ID Card', desc: 'สำหรับอ่านข้อมูลบัตรประชาชน', columns: [{ name: 'เลขบัตร', type: 'text' }, { name: 'ชื่อ-นามสกุล', type: 'text' }, { name: 'วันเกิด', type: 'date' }, { name: 'ที่อยู่', type: 'text' }] },
 ]
 
-type Props = { userProfile: UserProfile | null; setView: (v: View) => void }
+type Props = { userProfile: UserProfile | null; setView: (v: View) => void; refreshProfile: () => void }
 
-export default function DashboardView({ userProfile, setView }: Props) {
+export default function DashboardView({ userProfile, setView, refreshProfile }: Props) {
   const { toast } = useToast()
   const [tab, setTab] = useState<DashTab>('upload')
   const [templates, setTemplates] = useState<ExtractionTemplate[]>([])
@@ -25,9 +24,19 @@ export default function DashboardView({ userProfile, setView }: Props) {
   const [tplCols, setTplCols] = useState<TemplateColumn[]>([{ name: '', type: 'text' }])
   const [saving, setSaving] = useState(false)
 
+  // Upload state
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [uploadFile, setUploadFile] = useState<File | null>(null)
+  const [selectedTemplate, setSelectedTemplate] = useState('')
+  const [pageCount, setPageCount] = useState(1)
+  const [processing, setProcessing] = useState(false)
+  const [result, setResult] = useState<Record<string, unknown>[] | null>(null)
+  const [resultMeta, setResultMeta] = useState<{ credits_used: number; credits_remaining: number; tokens_used: number } | null>(null)
+  const [docs, setDocs] = useState<Document[]>([])
+
   const maxCols = userProfile?.tier === 'pro' ? 8 : userProfile?.tier === 'starter' ? 5 : 4
 
-  useEffect(() => { if (userProfile?.id) fetchTemplates() }, [userProfile?.id])
+  useEffect(() => { if (userProfile?.id) { fetchTemplates(); fetchDocs() } }, [userProfile?.id])
 
   const fetchTemplates = async () => {
     if (!userProfile?.id) return
@@ -35,18 +44,16 @@ export default function DashboardView({ userProfile, setView }: Props) {
     if (data) setTemplates(data as ExtractionTemplate[])
   }
 
-  const addCol = () => {
-    if (tplCols.length >= maxCols) { toast('error', `แพ็กเกจของคุณรองรับสูงสุด ${maxCols} คอลัมน์`); return }
-    setTplCols([...tplCols, { name: '', type: 'text' }])
+  const fetchDocs = async () => {
+    if (!userProfile?.id) return
+    const { data } = await supabase.from('documents').select('*').eq('user_id', userProfile.id).order('created_at', { ascending: false }).limit(20)
+    if (data) setDocs(data as Document[])
   }
+
+  const addCol = () => { if (tplCols.length >= maxCols) { toast('error', `แพ็กเกจของคุณรองรับสูงสุด ${maxCols} คอลัมน์`); return }; setTplCols([...tplCols, { name: '', type: 'text' }]) }
   const removeCol = (i: number) => setTplCols(tplCols.filter((_, idx) => idx !== i))
-  const updateCol = (i: number, field: keyof TemplateColumn, val: string) => {
-    const next = [...tplCols]; next[i] = { ...next[i], [field]: val }; setTplCols(next)
-  }
-  const moveCol = (i: number, dir: -1 | 1) => {
-    const j = i + dir; if (j < 0 || j >= tplCols.length) return
-    const next = [...tplCols]; [next[i], next[j]] = [next[j], next[i]]; setTplCols(next)
-  }
+  const updateCol = (i: number, field: keyof TemplateColumn, val: string) => { const next = [...tplCols]; next[i] = { ...next[i], [field]: val }; setTplCols(next) }
+  const moveCol = (i: number, dir: -1 | 1) => { const j = i + dir; if (j < 0 || j >= tplCols.length) return; const next = [...tplCols]; [next[i], next[j]] = [next[j], next[i]]; setTplCols(next) }
 
   const saveTemplate = async () => {
     if (!tplName.trim()) { toast('error', 'กรุณาตั้งชื่อ Template'); return }
@@ -57,19 +64,50 @@ export default function DashboardView({ userProfile, setView }: Props) {
     setSaving(false)
     if (error) { toast('error', error.message); return }
     toast('success', 'บันทึก Template สำเร็จ!')
-    setShowBuilder(false); setTplName(''); setTplDesc(''); setTplCols([{ name: '', type: 'text' }])
-    fetchTemplates()
+    setShowBuilder(false); setTplName(''); setTplDesc(''); setTplCols([{ name: '', type: 'text' }]); fetchTemplates()
   }
 
-  const usePreset = (preset: typeof PRESETS[0]) => {
-    setTplName(preset.name); setTplDesc(preset.desc); setTplCols(preset.columns.slice(0, maxCols))
-    setShowBuilder(true); setTab('templates')
+  const usePreset = (preset: typeof PRESETS[0]) => { setTplName(preset.name); setTplDesc(preset.desc); setTplCols(preset.columns.slice(0, maxCols)); setShowBuilder(true); setTab('templates') }
+  const deleteTemplate = async (id: string) => { const { error } = await supabase.from('extraction_templates').delete().eq('id', id); if (error) toast('error', error.message); else { toast('success', 'ลบ Template แล้ว'); fetchTemplates() } }
+
+  // === AI Processing ===
+  const processDocument = async () => {
+    if (!uploadFile) { toast('error', 'กรุณาเลือกไฟล์'); return }
+    if (!userProfile || userProfile.credits < pageCount) { toast('error', `เครดิตไม่เพียงพอ (ต้องการ ${pageCount}, มี ${userProfile?.credits || 0})`); return }
+    setProcessing(true); setResult(null); setResultMeta(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('กรุณาเข้าสู่ระบบใหม่')
+      const formData = new FormData()
+      formData.append('file', uploadFile)
+      formData.append('page_count', String(pageCount))
+      if (selectedTemplate) formData.append('template_id', selectedTemplate)
+      const res = await fetch(`https://sdnghecdrsukdgbxsjfl.supabase.co/functions/v1/process-document`, {
+        method: 'POST', headers: { 'Authorization': `Bearer ${session.access_token}` }, body: formData
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'ประมวลผลล้มเหลว')
+      setResult(data.extracted_data)
+      setResultMeta({ credits_used: data.credits_used, credits_remaining: data.credits_remaining, tokens_used: data.tokens_used })
+      toast('success', `สำเร็จ! ใช้ ${data.credits_used} เครดิต`)
+      refreshProfile(); fetchDocs()
+    } catch (err: unknown) { toast('error', err instanceof Error ? err.message : 'เกิดข้อผิดพลาด') }
+    finally { setProcessing(false) }
   }
 
-  const deleteTemplate = async (id: string) => {
-    const { error } = await supabase.from('extraction_templates').delete().eq('id', id)
-    if (error) toast('error', error.message)
-    else { toast('success', 'ลบ Template แล้ว'); fetchTemplates() }
+  const exportCSV = (data: Record<string, unknown>[]) => {
+    if (!data.length) return
+    const keys = Object.keys(data[0])
+    const csv = [keys.join(','), ...data.map(row => keys.map(k => `"${String(row[k] ?? '').replace(/"/g, '""')}"`).join(','))].join('\n')
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = `p-admin-export-${Date.now()}.csv`; a.click()
+    URL.revokeObjectURL(url); toast('success', 'ดาวน์โหลด CSV สำเร็จ!')
+  }
+
+  const handleFileSelect = (file: File) => {
+    setUploadFile(file)
+    setPageCount(file.type === 'application/pdf' ? Math.max(1, Math.ceil(file.size / 100000)) : 1)
   }
 
   const tabs: { key: DashTab; label: string; icon: React.ReactNode }[] = [
@@ -91,59 +129,107 @@ export default function DashboardView({ userProfile, setView }: Props) {
           <div className="flex items-center gap-3">
             <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
               <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center text-amber-500"><Coins size={20} /></div>
-              <div>
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">เครดิต</p>
-                <p className="text-xl font-black text-slate-900 font-headline leading-none">{userProfile?.credits?.toLocaleString() || 0}</p>
-              </div>
+              <div><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">เครดิต</p><p className="text-xl font-black text-slate-900 font-headline leading-none">{userProfile?.credits?.toLocaleString() || 0}</p></div>
             </div>
-            <button onClick={() => { setView('landing'); setTimeout(() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' }), 100) }} className="h-14 px-5 bg-indigo-600 text-white rounded-2xl flex items-center gap-2 hover:bg-indigo-700 transition-all text-sm font-bold shadow-lg shadow-indigo-100">
-              <Plus size={16} /> เติมเครดิต
-            </button>
+            <button onClick={() => { setView('landing'); setTimeout(() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' }), 100) }} className="h-14 px-5 bg-indigo-600 text-white rounded-2xl flex items-center gap-2 hover:bg-indigo-700 transition-all text-sm font-bold shadow-lg shadow-indigo-100"><Plus size={16} /> เติมเครดิต</button>
           </div>
         </div>
 
         {/* Tabs */}
         <div className="flex gap-1 bg-white p-1 rounded-2xl border border-slate-200 mb-8 overflow-x-auto">
           {tabs.map(t => (
-            <button key={t.key} onClick={() => setTab(t.key)} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${tab === t.key ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}>
-              {t.icon} {t.label}
-            </button>
+            <button key={t.key} onClick={() => setTab(t.key)} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${tab === t.key ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}>{t.icon} {t.label}</button>
           ))}
         </div>
 
-        {/* Upload Tab */}
+        {/* ========== Upload Tab ========== */}
         {tab === 'upload' && (
           <div className="grid md:grid-cols-3 gap-6">
-            <div className="md:col-span-1">
-              <div className="border-2 border-dashed border-slate-300 rounded-3xl p-10 flex flex-col items-center justify-center gap-4 hover:border-indigo-400 hover:bg-white transition-all cursor-pointer group h-72 bg-white/50">
-                <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-300 group-hover:text-indigo-600 group-hover:bg-indigo-50 transition-all"><Upload size={28} /></div>
-                <p className="text-sm font-bold text-slate-400 group-hover:text-slate-700 text-center">ลากไฟล์วางที่นี่<br />หรือคลิกเพื่อเลือก</p>
-                <p className="text-[10px] text-slate-300">PDF, JPG, PNG (สูงสุด 20MB)</p>
+            <div className="md:col-span-1 space-y-4">
+              <div onClick={() => fileRef.current?.click()} className={`border-2 border-dashed rounded-3xl p-8 flex flex-col items-center justify-center gap-3 transition-all cursor-pointer group ${uploadFile ? 'border-indigo-400 bg-indigo-50/50' : 'border-slate-300 hover:border-indigo-400 hover:bg-white bg-white/50'}`}>
+                <input ref={fileRef} type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={e => { if (e.target.files?.[0]) handleFileSelect(e.target.files[0]) }} />
+                {uploadFile ? (
+                  <>
+                    <div className="w-14 h-14 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-600"><FileText size={24} /></div>
+                    <p className="text-sm font-bold text-slate-900 text-center truncate max-w-full">{uploadFile.name}</p>
+                    <p className="text-[10px] text-slate-400">{(uploadFile.size / 1024).toFixed(0)} KB</p>
+                    <button onClick={e => { e.stopPropagation(); setUploadFile(null); setResult(null) }} className="text-[10px] text-rose-500 font-bold hover:underline">เปลี่ยนไฟล์</button>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-300 group-hover:text-indigo-600 group-hover:bg-indigo-50 transition-all"><Upload size={24} /></div>
+                    <p className="text-sm font-bold text-slate-400 group-hover:text-slate-700 text-center">ลากไฟล์วางที่นี่<br />หรือคลิกเพื่อเลือก</p>
+                    <p className="text-[10px] text-slate-300">PDF, JPG, PNG (สูงสุด 20MB)</p>
+                  </>
+                )}
               </div>
-              {templates.length > 0 && (
-                <div className="mt-4 bg-white rounded-2xl border border-slate-200 p-4">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">เลือก Template</p>
-                  <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold">
-                    <option value="">-- เลือก Template --</option>
-                    {templates.map(t => <option key={t.id} value={t.id}>{t.name} ({(t.columns as TemplateColumn[]).length} คอลัมน์)</option>)}
-                  </select>
+              {uploadFile && (
+                <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3 animate-fadeUp">
+                  {templates.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">เลือก Template</p>
+                      <select value={selectedTemplate} onChange={e => setSelectedTemplate(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold">
+                        <option value="">-- ไม่ใช้ Template (AI ตัดสินเอง) --</option>
+                        {templates.map(t => <option key={t.id} value={t.id}>{t.name} ({(t.columns as TemplateColumn[]).length} คอลัมน์)</option>)}
+                      </select>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">จำนวนหน้า (เครดิตที่จะใช้)</p>
+                    <input type="number" min={1} max={100} value={pageCount} onChange={e => setPageCount(Math.max(1, Number(e.target.value)))} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold" />
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-amber-50 rounded-xl border border-amber-100">
+                    <span className="text-xs font-bold text-amber-700">เครดิตที่จะใช้</span>
+                    <span className="text-lg font-black text-amber-600">{pageCount} <span className="text-xs font-bold">หน้า</span></span>
+                  </div>
+                  <button onClick={processDocument} disabled={processing} className="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-indigo-100">
+                    {processing ? <><Loader2 className="animate-spin" size={18} /> กำลังประมวลผล...</> : <><Zap size={18} /> เริ่มประมวลผล</>}
+                  </button>
                 </div>
               )}
             </div>
-            <div className="md:col-span-2 bg-white border border-slate-200 rounded-3xl p-10 flex flex-col items-center justify-center text-center">
-              <FileText size={48} className="text-slate-200 mb-4" />
-              <p className="text-sm font-bold text-slate-400">ยังไม่มีเอกสารที่ประมวลผล</p>
-              <p className="text-xs text-slate-300 mt-1">อัปโหลดไฟล์และเลือก Template เพื่อเริ่มต้น</p>
+            <div className="md:col-span-2">
+              {processing ? (
+                <div className="bg-white border border-slate-200 rounded-3xl p-16 flex flex-col items-center justify-center text-center animate-pulse">
+                  <Loader2 size={48} className="text-indigo-400 animate-spin mb-4" />
+                  <p className="text-sm font-bold text-slate-500">AI กำลังอ่านเอกสาร...</p>
+                  <p className="text-xs text-slate-400 mt-1">อาจใช้เวลา 5-15 วินาที</p>
+                </div>
+              ) : result ? (
+                <div className="bg-white border border-slate-200 rounded-3xl p-6 animate-fadeUp">
+                  {resultMeta && (
+                    <div className="flex items-center gap-4 mb-4 p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+                      <CheckCircle2 size={18} className="text-emerald-600" />
+                      <span className="text-xs font-bold text-emerald-700">ใช้ {resultMeta.credits_used} เครดิต · เหลือ {resultMeta.credits_remaining} · Tokens: {resultMeta.tokens_used.toLocaleString()}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest">ผลลัพธ์ ({result.length} รายการ)</p>
+                    <button onClick={() => exportCSV(result)} className="flex items-center gap-2 bg-indigo-600 text-white font-bold text-xs px-4 py-2 rounded-xl hover:bg-indigo-700"><Download size={14} /> Download CSV</button>
+                  </div>
+                  <div className="overflow-x-auto rounded-xl border border-slate-200">
+                    <table className="w-full text-xs">
+                      <thead><tr className="bg-slate-50">{Object.keys(result[0] || {}).map(k => <th key={k} className="text-left px-3 py-2 font-bold text-slate-500 border-b border-slate-200 whitespace-nowrap">{k}</th>)}</tr></thead>
+                      <tbody>{result.map((row, i) => (<tr key={i} className="hover:bg-slate-50 border-b border-slate-100 last:border-0">{Object.values(row).map((v, j) => <td key={j} className="px-3 py-2 text-slate-700 whitespace-nowrap">{String(v ?? '')}</td>)}</tr>))}</tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white border border-slate-200 rounded-3xl p-10 flex flex-col items-center justify-center text-center h-full min-h-[300px]">
+                  <FileText size={48} className="text-slate-200 mb-4" />
+                  <p className="text-sm font-bold text-slate-400">ยังไม่มีเอกสารที่ประมวลผล</p>
+                  <p className="text-xs text-slate-300 mt-1">อัปโหลดไฟล์และกด "เริ่มประมวลผล" เพื่อเริ่มต้น</p>
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        {/* Templates Tab */}
+        {/* ========== Templates Tab ========== */}
         {tab === 'templates' && (
           <div>
             {!showBuilder ? (
               <>
-                {/* Presets */}
                 <div className="mb-8">
                   <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">🚀 เริ่มต้นจาก Template สำเร็จรูป</p>
                   <div className="grid md:grid-cols-3 gap-4">
@@ -151,57 +237,39 @@ export default function DashboardView({ userProfile, setView }: Props) {
                       <button key={i} onClick={() => usePreset(p)} className="bg-white border border-slate-200 rounded-2xl p-5 text-left hover:border-indigo-300 hover:shadow-md transition-all group">
                         <h4 className="font-bold text-slate-900 mb-1 group-hover:text-indigo-600 transition-colors">{p.name}</h4>
                         <p className="text-xs text-slate-400 mb-3">{p.desc}</p>
-                        <div className="flex gap-1 flex-wrap">
-                          {p.columns.map((c, ci) => <span key={ci} className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold">{c.name}</span>)}
-                        </div>
+                        <div className="flex gap-1 flex-wrap">{p.columns.map((c, ci) => <span key={ci} className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold">{c.name}</span>)}</div>
                       </button>
                     ))}
                   </div>
                 </div>
-                {/* User Templates */}
                 <div className="flex items-center justify-between mb-4">
                   <p className="text-xs font-black text-slate-400 uppercase tracking-widest">📋 Templates ของคุณ (สูงสุด {maxCols} คอลัมน์)</p>
                   <button onClick={() => setShowBuilder(true)} className="flex items-center gap-2 bg-indigo-600 text-white font-bold text-xs px-4 py-2 rounded-xl hover:bg-indigo-700 transition-all"><Plus size={14} /> สร้างใหม่</button>
                 </div>
                 {templates.length === 0 ? (
-                  <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center">
-                    <Table size={40} className="text-slate-200 mx-auto mb-3" />
-                    <p className="text-sm font-bold text-slate-400">ยังไม่มี Template</p>
-                    <p className="text-xs text-slate-300 mt-1">สร้าง Template เพื่อกำหนดคอลัมน์ที่ต้องการจากเอกสาร</p>
-                  </div>
+                  <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center"><Table size={40} className="text-slate-200 mx-auto mb-3" /><p className="text-sm font-bold text-slate-400">ยังไม่มี Template</p></div>
                 ) : (
-                  <div className="grid gap-4">
-                    {templates.map(t => (
-                      <div key={t.id} className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between hover:shadow-sm transition-all">
-                        <div>
-                          <h4 className="font-bold text-slate-900">{t.name}</h4>
-                          {t.description && <p className="text-xs text-slate-400 mt-0.5">{t.description}</p>}
-                          <div className="flex gap-1 mt-2 flex-wrap">
-                            {(t.columns as TemplateColumn[]).map((c, ci) => <span key={ci} className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-bold">{c.name}</span>)}
-                          </div>
-                        </div>
-                        <button onClick={() => deleteTemplate(t.id)} className="text-slate-300 hover:text-rose-500 transition-colors p-2"><Trash2 size={16} /></button>
+                  <div className="grid gap-4">{templates.map(t => (
+                    <div key={t.id} className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between hover:shadow-sm transition-all">
+                      <div>
+                        <h4 className="font-bold text-slate-900">{t.name}</h4>
+                        {t.description && <p className="text-xs text-slate-400 mt-0.5">{t.description}</p>}
+                        <div className="flex gap-1 mt-2 flex-wrap">{(t.columns as TemplateColumn[]).map((c, ci) => <span key={ci} className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-bold">{c.name}</span>)}</div>
                       </div>
-                    ))}
-                  </div>
+                      <button onClick={() => deleteTemplate(t.id)} className="text-slate-300 hover:text-rose-500 transition-colors p-2"><Trash2 size={16} /></button>
+                    </div>
+                  ))}</div>
                 )}
               </>
             ) : (
-              /* Template Builder */
               <div className="bg-white border border-slate-200 rounded-3xl p-8 animate-fadeUp">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-headline font-black text-slate-900">สร้าง Template ใหม่</h3>
                   <button onClick={() => setShowBuilder(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
                 </div>
                 <div className="space-y-4 mb-6">
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">ชื่อ Template</label>
-                    <input value={tplName} onChange={e => setTplName(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold" placeholder="เช่น ใบเสร็จค่าไฟฟ้า" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">คำอธิบาย (ไม่บังคับ)</label>
-                    <input value={tplDesc} onChange={e => setTplDesc(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm" placeholder="อธิบายว่า Template นี้ใช้กับเอกสารประเภทไหน" />
-                  </div>
+                  <div><label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">ชื่อ Template</label><input value={tplName} onChange={e => setTplName(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold" placeholder="เช่น ใบเสร็จค่าไฟฟ้า" /></div>
+                  <div><label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">คำอธิบาย (ไม่บังคับ)</label><input value={tplDesc} onChange={e => setTplDesc(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm" placeholder="อธิบายว่า Template นี้ใช้กับเอกสารประเภทไหน" /></div>
                 </div>
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-3">
@@ -210,14 +278,11 @@ export default function DashboardView({ userProfile, setView }: Props) {
                   </div>
                   <div className="space-y-2">
                     {tplCols.map((col, i) => (
-                      <div key={i} className="flex items-center gap-2 bg-slate-50 rounded-xl p-2 animate-slideIn">
+                      <div key={i} className="flex items-center gap-2 bg-slate-50 rounded-xl p-2">
                         <span className="text-[10px] font-black text-slate-300 w-6 text-center">{i + 1}</span>
                         <input value={col.name} onChange={e => updateCol(i, 'name', e.target.value)} className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold" placeholder="ชื่อคอลัมน์" />
                         <select value={col.type} onChange={e => updateCol(i, 'type', e.target.value)} className="bg-white border border-slate-200 rounded-lg px-2 py-2 text-xs font-bold w-24">
-                          <option value="text">ข้อความ</option>
-                          <option value="number">ตัวเลข</option>
-                          <option value="date">วันที่</option>
-                          <option value="currency">จำนวนเงิน</option>
+                          <option value="text">ข้อความ</option><option value="number">ตัวเลข</option><option value="date">วันที่</option><option value="currency">จำนวนเงิน</option>
                         </select>
                         <div className="flex gap-0.5">
                           <button onClick={() => moveCol(i, -1)} className="p-1 text-slate-300 hover:text-slate-600"><ArrowUp size={12} /></button>
@@ -236,15 +301,31 @@ export default function DashboardView({ userProfile, setView }: Props) {
           </div>
         )}
 
-        {/* History Tab */}
+        {/* ========== History Tab ========== */}
         {tab === 'history' && (
-          <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center">
-            <FileText size={48} className="text-slate-200 mx-auto mb-3" />
-            <p className="text-sm font-bold text-slate-400">ยังไม่มีประวัติการประมวลผล</p>
-          </div>
+          docs.length === 0 ? (
+            <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center"><FileText size={48} className="text-slate-200 mx-auto mb-3" /><p className="text-sm font-bold text-slate-400">ยังไม่มีประวัติการประมวลผล</p></div>
+          ) : (
+            <div className="space-y-3">{docs.map(doc => (
+              <div key={doc.id} className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between hover:shadow-sm transition-all">
+                <div className="flex items-center gap-4">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${doc.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : doc.status === 'failed' ? 'bg-rose-50 text-rose-600' : 'bg-amber-50 text-amber-600'}`}>
+                    {doc.status === 'completed' ? <CheckCircle2 size={18} /> : doc.status === 'failed' ? <AlertCircle size={18} /> : <Loader2 size={18} className="animate-spin" />}
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-900 text-sm">{doc.original_filename || doc.filename}</p>
+                    <p className="text-[10px] text-slate-400">{new Date(doc.created_at).toLocaleString('th-TH')} · {doc.page_count} หน้า</p>
+                  </div>
+                </div>
+                {doc.status === 'completed' && doc.data && (
+                  <button onClick={() => exportCSV(doc.data as unknown as Record<string, unknown>[])} className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"><Download size={12} /> CSV</button>
+                )}
+              </div>
+            ))}</div>
+          )
         )}
 
-        {/* How-to Tab */}
+        {/* ========== How-to Tab ========== */}
         {tab === 'howto' && <HowToGuide />}
       </div>
     </div>
@@ -257,22 +338,13 @@ function HowToGuide() {
   const [sheetUrl, setSheetUrl] = useState('')
   const { toast } = useToast()
   const exampleCsvUrl = 'https://your-app-url.vercel.app/api/export/abc123'
-
-  const copyText = (text: string) => {
-    navigator.clipboard.writeText(text)
-    toast('success', 'คัดลอกแล้ว!')
-  }
+  const copyText = (text: string) => { navigator.clipboard.writeText(text); toast('success', 'คัดลอกแล้ว!') }
 
   return (
     <div className="space-y-6 animate-fadeUp">
-      {/* Guide Tab Switcher */}
       <div className="flex gap-2 bg-white p-1 rounded-xl border border-slate-200">
-        <button onClick={() => setGuideTab('csv')} className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${guideTab === 'csv' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
-          <Download size={14} className="inline mr-2" />Export CSV
-        </button>
-        <button onClick={() => setGuideTab('sheets')} className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${guideTab === 'sheets' ? 'bg-emerald-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
-          <ExternalLink size={14} className="inline mr-2" />Google Sheets
-        </button>
+        <button onClick={() => setGuideTab('csv')} className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${guideTab === 'csv' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}><Download size={14} className="inline mr-2" />Export CSV</button>
+        <button onClick={() => setGuideTab('sheets')} className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${guideTab === 'sheets' ? 'bg-emerald-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}><ExternalLink size={14} className="inline mr-2" />Google Sheets</button>
       </div>
 
       {guideTab === 'csv' ? (
@@ -298,7 +370,6 @@ function HowToGuide() {
           <div className="bg-white border border-slate-200 rounded-3xl p-8">
             <h3 className="text-lg font-headline font-black text-slate-900 mb-2">📊 วิธีเชื่อมต่อ Google Sheets</h3>
             <p className="text-sm text-slate-500 mb-6">ส่งข้อมูลที่ AI สกัดได้ตรงไปยัง Google Sheets ให้อัปเดตอัตโนมัติ</p>
-
             <div className="space-y-6">
               {[
                 { step: 1, title: 'เปิด Google Sheets', desc: 'ไปที่ sheets.google.com แล้วสร้าง Spreadsheet ใหม่', extra: <a href="https://sheets.google.com" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-indigo-600 font-bold hover:underline mt-1"><ExternalLink size={10} /> เปิด Google Sheets</a> },
@@ -314,24 +385,17 @@ function HowToGuide() {
                       <code className="flex-1 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg text-xs text-amber-800 font-mono">=IMPORTDATA("{exampleCsvUrl}")</code>
                       <button onClick={() => copyText(`=IMPORTDATA("${exampleCsvUrl}")`)} className="bg-amber-500 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-amber-600 flex items-center gap-1"><Copy size={12} /></button>
                     </div>
-                    <p className="text-[10px] text-slate-400 mt-1">* Google Sheets จะดึงข้อมูลจากลิงก์นี้โดยอัตโนมัติ</p>
                   </div>
                 )},
                 { step: 4, title: 'เสร็จเรียบร้อย!', desc: 'ทุกครั้งที่คุณประมวลผลเอกสารใหม่ ข้อมูลใน Google Sheets จะอัปเดตโดยอัตโนมัติ' },
               ].map(s => (
                 <div key={s.step} className="flex gap-4">
                   <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-black text-sm flex-shrink-0">{s.step}</div>
-                  <div className="flex-1">
-                    <h4 className="font-bold text-slate-900 text-sm">{s.title}</h4>
-                    <p className="text-xs text-slate-500 mt-0.5">{s.desc}</p>
-                    {s.extra}
-                  </div>
+                  <div className="flex-1"><h4 className="font-bold text-slate-900 text-sm">{s.title}</h4><p className="text-xs text-slate-500 mt-0.5">{s.desc}</p>{s.extra}</div>
                 </div>
               ))}
             </div>
           </div>
-
-          {/* Google Sheet URL Input */}
           <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6">
             <h4 className="font-bold text-emerald-900 text-sm mb-2">🔗 ผูก Google Sheet URL ของคุณ (ไม่บังคับ)</h4>
             <p className="text-xs text-emerald-700 mb-3">วาง URL ของ Google Sheet ที่คุณต้องการให้ระบบส่งข้อมูลไปอัปเดต</p>
