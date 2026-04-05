@@ -22,6 +22,7 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
   const [tplName, setTplName] = useState('')
   const [tplDesc, setTplDesc] = useState('')
   const [tplCols, setTplCols] = useState<TemplateColumn[]>([{ name: '', type: 'text' }])
+  const [tplCustomPrompt, setTplCustomPrompt] = useState('')
   const [saving, setSaving] = useState(false)
 
   // Upload state
@@ -60,14 +61,14 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
     const validCols = tplCols.filter(c => c.name.trim())
     if (validCols.length === 0) { toast('error', 'กรุณาเพิ่มคอลัมน์อย่างน้อย 1 อัน'); return }
     setSaving(true)
-    const { error } = await supabase.from('extraction_templates').insert({ user_id: userProfile!.id, name: tplName, description: tplDesc, columns: validCols })
+    const { error } = await supabase.from('extraction_templates').insert({ user_id: userProfile!.id, name: tplName, description: tplDesc, custom_prompt: tplCustomPrompt, columns: validCols })
     setSaving(false)
     if (error) { toast('error', error.message); return }
     toast('success', 'บันทึก Template สำเร็จ!')
-    setShowBuilder(false); setTplName(''); setTplDesc(''); setTplCols([{ name: '', type: 'text' }]); fetchTemplates()
+    setShowBuilder(false); setTplName(''); setTplDesc(''); setTplCustomPrompt(''); setTplCols([{ name: '', type: 'text' }]); fetchTemplates()
   }
 
-  const usePreset = (preset: typeof PRESETS[0]) => { setTplName(preset.name); setTplDesc(preset.desc); setTplCols(preset.columns.slice(0, maxCols)); setShowBuilder(true); setTab('templates') }
+  const usePreset = (preset: typeof PRESETS[0]) => { setTplName(preset.name); setTplDesc(preset.desc); setTplCols(preset.columns.slice(0, maxCols)); setTplCustomPrompt(''); setShowBuilder(true); setTab('templates') }
   const deleteTemplate = async (id: string) => { const { error } = await supabase.from('extraction_templates').delete().eq('id', id); if (error) toast('error', error.message); else { toast('success', 'ลบ Template แล้ว'); fetchTemplates() } }
 
   // === AI Processing ===
@@ -200,7 +201,7 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
                   {resultMeta && (
                     <div className="flex items-center gap-4 mb-4 p-3 bg-emerald-50 rounded-xl border border-emerald-100">
                       <CheckCircle2 size={18} className="text-emerald-600" />
-                      <span className="text-xs font-bold text-emerald-700">ใช้ {resultMeta.credits_used} เครดิต · เหลือ {resultMeta.credits_remaining} · Tokens: {resultMeta.tokens_used.toLocaleString()}</span>
+                      <span className="text-xs font-bold text-emerald-700">ใช้ {resultMeta.credits_used} เครดิต · เหลือ {resultMeta.credits_remaining}</span>
                     </div>
                   )}
                   <div className="flex items-center justify-between mb-3">
@@ -270,6 +271,10 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
                 <div className="space-y-4 mb-6">
                   <div><label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">ชื่อ Template</label><input value={tplName} onChange={e => setTplName(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold" placeholder="เช่น ใบเสร็จค่าไฟฟ้า" /></div>
                   <div><label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">คำอธิบาย (ไม่บังคับ)</label><input value={tplDesc} onChange={e => setTplDesc(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm" placeholder="อธิบายว่า Template นี้ใช้กับเอกสารประเภทไหน" /></div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">คำสั่งพิเศษ หรือบริบทเพิ่มเติมให้ AI (Optional)</label>
+                    <textarea value={tplCustomPrompt} onChange={e => setTplCustomPrompt(e.target.value)} rows={3} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm" placeholder="ตัวอย่าง: รหัสสาขาต้องขึ้นต้นด้วย INC เสมอ, แปลงวันที่ให้เป็นรูปแบบ YYYY-MM-DD" />
+                  </div>
                 </div>
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-3">
@@ -354,7 +359,7 @@ function HowToGuide() {
           <div className="space-y-6">
             {[
               { step: 1, title: 'อัปโหลดเอกสาร', desc: 'ไปที่แท็บ "อัปโหลด" แล้วลากไฟล์ PDF หรือรูปภาพวางลงในพื้นที่อัปโหลด' },
-              { step: 2, title: 'เลือก Template', desc: 'เลือก Template ที่สร้างไว้ หรือสร้างใหม่ในแท็บ "Templates" เพื่อกำหนดคอลัมน์ที่ต้องการ' },
+              { step: 2, title: 'เลือก Template และใส่คำสั่งพิเศษ (Prompt)', desc: 'คุณสามารถสร้าง Template ใหม่เพื่อกำหนดชื่อคอลัมน์ และสามารถใส่ "คำสั่งพิเศษให้ AI (Prompt)" เพื่อสอน AI ให้หารูปแบบเฉพาะที่คุณต้องการได้ (เช่น รหัสต้องขึ้นต้นด้วย INC)' },
               { step: 3, title: 'กด "เริ่มประมวลผล"', desc: 'ระบบ AI จะอ่านเอกสารและสกัดข้อมูลตามคอลัมน์ที่คุณกำหนด (ใช้เวลา 5-10 วินาที/หน้า)' },
               { step: 4, title: 'ดาวน์โหลด CSV', desc: 'เมื่อเสร็จแล้ว กดปุ่ม "Download CSV" เพื่อดาวน์โหลดไฟล์ เปิดได้ทันทีใน Excel' },
             ].map(s => (

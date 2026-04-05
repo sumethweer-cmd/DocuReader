@@ -59,6 +59,7 @@ export type ExtractionTemplate = {
   name: string
   columns: TemplateColumn[]
   description: string
+  custom_prompt?: string | null
   is_default: boolean
   created_at: string
 }
