@@ -20,6 +20,8 @@ export type PricingPlan = {
   currency: string
   credits_awarded: number
   max_columns: number
+  max_templates: number
+  has_googlesheets: boolean
   backlog_days: number
   is_contact_only: boolean
   is_active: boolean
@@ -51,6 +53,9 @@ export type UserProfile = {
   credits: number
   is_admin: boolean
   tier: string
+  max_columns: number
+  max_templates: number
+  has_googlesheets: boolean
 }
 
 export type ExtractionTemplate = {

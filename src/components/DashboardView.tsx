@@ -6,10 +6,13 @@ import type { View, UserProfile, ExtractionTemplate, TemplateColumn, Document } 
 
 type DashTab = 'upload' | 'templates' | 'history' | 'howto'
 
-const PRESETS: { name: string; desc: string; columns: TemplateColumn[] }[] = [
-  { name: 'ใบเสร็จ / Invoice', desc: 'สำหรับอ่านใบเสร็จรับเงินทั่วไป', columns: [{ name: 'เลขที่ใบเสร็จ', type: 'text' }, { name: 'วันที่', type: 'date' }, { name: 'ชื่อบริษัท', type: 'text' }, { name: 'ยอดรวม', type: 'currency' }] },
-  { name: 'ใบแจ้งหนี้ / Bill', desc: 'สำหรับอ่านใบแจ้งหนี้ค่าบริการ', columns: [{ name: 'เลขที่เอกสาร', type: 'text' }, { name: 'วันครบกำหนด', type: 'date' }, { name: 'รายการ', type: 'text' }, { name: 'จำนวนเงิน', type: 'currency' }] },
-  { name: 'บัตรประชาชน / ID Card', desc: 'สำหรับอ่านข้อมูลบัตรประชาชน', columns: [{ name: 'เลขบัตร', type: 'text' }, { name: 'ชื่อ-นามสกุล', type: 'text' }, { name: 'วันเกิด', type: 'date' }, { name: 'ที่อยู่', type: 'text' }] },
+const PRESETS: { name: string; desc: string; columns: TemplateColumn[]; tier: 'Starter' | 'Pro' }[] = [
+  { name: 'ใบแจ้งหนี้ / Invoice', desc: 'สำหรับอ่านใบแจ้งหนี้ค่าสินค้าและบริการทั่วไป', columns: [{ name: 'เลขที่ใบแจ้งหนี้', type: 'text' }, { name: 'วันที่', type: 'date' }, { name: 'ชื่อผู้ออกเอกสาร', type: 'text' }, { name: 'ชื่อลูกค้า', type: 'text' }, { name: 'ยอดรวมสุทธิ', type: 'currency' }], tier: 'Starter' },
+  { name: 'ใบเสร็จรับเงิน / Receipt', desc: 'สำหรับสกัดข้อมูลจากใบเสร็จรับเงิน', columns: [{ name: 'เลขที่ใบเสร็จ', type: 'text' }, { name: 'วันที่', type: 'date' }, { name: 'รายการ', type: 'text' }, { name: 'ราคารวม', type: 'currency' }], tier: 'Starter' },
+  { name: 'สลิปโอนเงิน / Bank Slip', desc: 'สำหรับตรวจสอบยอดโอนเงินจากธนาคาร', columns: [{ name: 'ธนาคาร', type: 'text' }, { name: 'วัน-เวลาที่โอน', type: 'text' }, { name: 'ชื่อผู้โอน', type: 'text' }, { name: 'จำนวนเงิน', type: 'currency' }, { name: 'เลขที่อ้างอิง', type: 'text' }], tier: 'Starter' },
+  { name: 'บัตรประชาชน / ID Card', desc: 'สำหรับอ่านข้อมูลจากหน้าบัตรประชาชน', columns: [{ name: 'เลขประจำตัว', type: 'text' }, { name: 'ชื่อ-นามสกุล', type: 'text' }, { name: 'วันเกิด', type: 'date' }, { name: 'ที่อยู่', type: 'text' }], tier: 'Starter' },
+  { name: 'ประกันสังคม / Social Security', desc: 'สำหรับข้อมูลสิทธิประกันสังคม', columns: [{ name: 'เลขผู้ประกันตน', type: 'text' }, { name: 'ชื่อ-นามสกุล', type: 'text' }, { name: 'โรงพยาบาล', type: 'text' }, { name: 'วันหมดอายุสิทธิ', type: 'date' }], tier: 'Starter' },
+  { name: 'รายงานการขาย / Sales Report', desc: 'สกัดข้อมูลการขายรายวัน (Pro)', columns: [{ name: 'รหัสสินค้า', type: 'text' }, { name: 'ชื่อสินค้า', type: 'text' }, { name: 'หมวดหมู่', type: 'text' }, { name: 'จำนวน', type: 'number' }, { name: 'ราคาต่อหน่วย', type: 'currency' }, { name: 'ราคารวม', type: 'currency' }, { name: 'ช่องทางขาย', type: 'text' }, { name: 'หมายเหตุ', type: 'text' }], tier: 'Pro' },
 ]
 
 type Props = { userProfile: UserProfile | null; setView: (v: View) => void; refreshProfile: () => void }
@@ -25,9 +28,11 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
   const [tplCustomPrompt, setTplCustomPrompt] = useState('')
   const [saving, setSaving] = useState(false)
 
-  // Upload state
+  // Input state
+  const [inputMode, setInputMode] = useState<'file' | 'text'>('file')
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploadFile, setUploadFile] = useState<File | null>(null)
+  const [textContent, setTextContent] = useState('')
   const [selectedTemplate, setSelectedTemplate] = useState('')
   const [pageCount, setPageCount] = useState(1)
   const [processing, setProcessing] = useState(false)
@@ -35,7 +40,9 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
   const [resultMeta, setResultMeta] = useState<{ credits_used: number; credits_remaining: number; tokens_used: number } | null>(null)
   const [docs, setDocs] = useState<Document[]>([])
 
-  const maxCols = userProfile?.tier === 'pro' ? 8 : userProfile?.tier === 'starter' ? 5 : 4
+  const maxCols = userProfile?.max_columns || 4
+  const maxTemplates = userProfile?.max_templates || 3
+  const hasGSheet = userProfile?.has_googlesheets || false
 
   useEffect(() => { if (userProfile?.id) { fetchTemplates(); fetchDocs() } }, [userProfile?.id])
 
@@ -60,6 +67,7 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
     if (!tplName.trim()) { toast('error', 'กรุณาตั้งชื่อ Template'); return }
     const validCols = tplCols.filter(c => c.name.trim())
     if (validCols.length === 0) { toast('error', 'กรุณาเพิ่มคอลัมน์อย่างน้อย 1 อัน'); return }
+    if (templates.length >= maxTemplates) { toast('error', `แพ็กเกจของคุณสร้างได้สูงสุด ${maxTemplates} Template`); return }
     setSaving(true)
     const { error } = await supabase.from('extraction_templates').insert({ user_id: userProfile!.id, name: tplName, description: tplDesc, custom_prompt: tplCustomPrompt, columns: validCols })
     setSaving(false)
@@ -73,14 +81,20 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
 
   // === AI Processing ===
   const processDocument = async () => {
-    if (!uploadFile) { toast('error', 'กรุณาเลือกไฟล์'); return }
+    if (inputMode === 'file' && !uploadFile) { toast('error', 'กรุณาเลือกไฟล์'); return }
+    if (inputMode === 'text' && !textContent.trim()) { toast('error', 'กรุณาใส่ข้อความ'); return }
+    if (!selectedTemplate) { toast('error', 'กรุณาเลือก Template เพื่อใช้งาน (ระบบบังคับเลือกเพื่อความแม่นยำสูงสุด)'); return }
     if (!userProfile || userProfile.credits < pageCount) { toast('error', `เครดิตไม่เพียงพอ (ต้องการ ${pageCount}, มี ${userProfile?.credits || 0})`); return }
     setProcessing(true); setResult(null); setResultMeta(null)
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) throw new Error('กรุณาเข้าสู่ระบบใหม่')
       const formData = new FormData()
-      formData.append('file', uploadFile)
+      if (inputMode === 'file' && uploadFile) {
+        formData.append('file', uploadFile)
+      } else {
+        formData.append('text_content', textContent)
+      }
       formData.append('page_count', String(pageCount))
       if (selectedTemplate) formData.append('template_id', selectedTemplate)
       const res = await fetch(`https://sdnghecdrsukdgbxsjfl.supabase.co/functions/v1/process-document`, {
@@ -108,7 +122,24 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
 
   const handleFileSelect = (file: File) => {
     setUploadFile(file)
-    setPageCount(file.type === 'application/pdf' ? Math.max(1, Math.ceil(file.size / 100000)) : 1)
+    if (file.type === 'application/pdf') {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const content = e.target?.result as string
+        const match = content.match(/\/Type\s*\/Page\b/g)
+        const count = match ? match.length : 1
+        setPageCount(count * 2)
+      }
+      reader.readAsText(file.slice(0, 1000000)) 
+    } else {
+      setPageCount(2)
+    }
+  }
+
+  const handleTextChange = (text: string) => {
+    setTextContent(text)
+    const words = text.trim() ? text.trim().split(/\s+/).length : 0
+    setPageCount(Math.max(1, Math.ceil(words / 300)) * 2)
   }
 
   const tabs: { key: DashTab; label: string; icon: React.ReactNode }[] = [
@@ -147,32 +178,52 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
         {tab === 'upload' && (
           <div className="grid md:grid-cols-3 gap-6">
             <div className="md:col-span-1 space-y-4">
-              <div onClick={() => fileRef.current?.click()} className={`border-2 border-dashed rounded-3xl p-8 flex flex-col items-center justify-center gap-3 transition-all cursor-pointer group ${uploadFile ? 'border-indigo-400 bg-indigo-50/50' : 'border-slate-300 hover:border-indigo-400 hover:bg-white bg-white/50'}`}>
-                <input ref={fileRef} type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={e => { if (e.target.files?.[0]) handleFileSelect(e.target.files[0]) }} />
-                {uploadFile ? (
-                  <>
-                    <div className="w-14 h-14 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-600"><FileText size={24} /></div>
-                    <p className="text-sm font-bold text-slate-900 text-center truncate max-w-full">{uploadFile.name}</p>
-                    <p className="text-[10px] text-slate-400">{(uploadFile.size / 1024).toFixed(0)} KB</p>
-                    <button onClick={e => { e.stopPropagation(); setUploadFile(null); setResult(null) }} className="text-[10px] text-rose-500 font-bold hover:underline">เปลี่ยนไฟล์</button>
-                  </>
-                ) : (
-                  <>
-                    <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-300 group-hover:text-indigo-600 group-hover:bg-indigo-50 transition-all"><Upload size={24} /></div>
-                    <p className="text-sm font-bold text-slate-400 group-hover:text-slate-700 text-center">ลากไฟล์วางที่นี่<br />หรือคลิกเพื่อเลือก</p>
-                    <p className="text-[10px] text-slate-300">PDF, JPG, PNG (สูงสุด 20MB)</p>
-                  </>
-                )}
+              {/* Input Mode Toggle */}
+              <div className="flex gap-1 bg-slate-100 p-1 rounded-xl mb-4">
+                <button onClick={() => { setInputMode('file'); setResult(null) }} className={`flex-1 py-2 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${inputMode === 'file' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>ไฟล์เอกสาร</button>
+                <button onClick={() => { setInputMode('text'); setResult(null) }} className={`flex-1 py-2 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${inputMode === 'text' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>พิมพ์ข้อความ</button>
               </div>
-              {uploadFile && (
+
+              {inputMode === 'file' ? (
+                <div onClick={() => fileRef.current?.click()} className={`border-2 border-dashed rounded-3xl p-8 flex flex-col items-center justify-center gap-3 transition-all cursor-pointer group ${uploadFile ? 'border-indigo-400 bg-indigo-50/50' : 'border-slate-300 hover:border-indigo-400 hover:bg-white bg-white/50'}`}>
+                  <input ref={fileRef} type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={e => { if (e.target.files?.[0]) handleFileSelect(e.target.files[0]) }} />
+                  {uploadFile ? (
+                    <>
+                      <div className="w-14 h-14 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-600"><FileText size={24} /></div>
+                      <p className="text-sm font-bold text-slate-900 text-center truncate max-w-full">{uploadFile.name}</p>
+                      <p className="text-[10px] text-slate-400">{(uploadFile.size / 1024).toFixed(0)} KB</p>
+                      <button onClick={e => { e.stopPropagation(); setUploadFile(null); setResult(null) }} className="text-[10px] text-rose-500 font-bold hover:underline">เปลี่ยนไฟล์</button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-300 group-hover:text-indigo-600 group-hover:bg-indigo-50 transition-all"><Upload size={24} /></div>
+                      <p className="text-sm font-bold text-slate-400 group-hover:text-slate-700 text-center">ลากไฟล์วางที่นี่<br />หรือคลิกเพื่อเลือก</p>
+                      <p className="text-[10px] text-slate-300">PDF, JPG, PNG (สูงสุด 20MB)</p>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="relative">
+                    <textarea value={textContent} onChange={e => handleTextChange(e.target.value)} placeholder="วางข้อความยาวๆ ที่นี่... (เช่น อีเมล, บทความ, แชท)" className="w-full h-48 bg-white border-2 border-slate-200 rounded-3xl p-5 text-sm focus:border-indigo-400 outline-none transition-all resize-none font-body" />
+                    <div className="absolute bottom-4 right-5 flex gap-3 text-[10px] font-bold text-slate-400">
+                      <span>{textContent.length.toLocaleString()} ตัวอักษร</span>
+                      <span>{textContent.trim() ? textContent.trim().split(/\s+/).length : 0} คำ</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {(uploadFile || (inputMode === 'text' && textContent.trim())) && (
                 <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3 animate-fadeUp">
                   {templates.length > 0 && (
                     <div>
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">เลือก Template</p>
-                      <select value={selectedTemplate} onChange={e => setSelectedTemplate(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold">
-                        <option value="">-- ไม่ใช้ Template (AI ตัดสินเอง) --</option>
-                        {templates.map(t => <option key={t.id} value={t.id}>{t.name} ({(t.columns as TemplateColumn[]).length} คอลัมน์)</option>)}
+                      <select value={selectedTemplate} onChange={e => setSelectedTemplate(e.target.value)} className={`w-full border rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${!selectedTemplate ? 'bg-rose-50 border-rose-200 text-rose-500' : 'bg-slate-50 border-slate-200'}`}>
+                        <option value="">-- กรุณาเลือก Template เสมอ --</option>
+                        {templates.map(t => <option key={t.id} value={t.id} className="text-slate-900">{t.name} ({(t.columns as TemplateColumn[]).length} คอลัมน์)</option>)}
                       </select>
+                      {!selectedTemplate && <p className="text-[9px] text-rose-400 mt-1 font-bold animate-pulse">* จำเป็นต้องเลือก Template เพื่อเริ่มระบบ</p>}
                     </div>
                   )}
                   <div>
@@ -181,7 +232,7 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
                   </div>
                   <div className="flex items-center justify-between p-3 bg-amber-50 rounded-xl border border-amber-100">
                     <span className="text-xs font-bold text-amber-700">เครดิตที่จะใช้</span>
-                    <span className="text-lg font-black text-amber-600">{pageCount} <span className="text-xs font-bold">หน้า</span></span>
+                    <span className="text-lg font-black text-amber-600">{pageCount} <span className="text-xs font-bold">{inputMode === 'file' ? 'หน้า' : 'Credit'}</span></span>
                   </div>
                   <button onClick={processDocument} disabled={processing} className="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-indigo-100">
                     {processing ? <><Loader2 className="animate-spin" size={18} /> กำลังประมวลผล...</> : <><Zap size={18} /> เริ่มประมวลผล</>}
@@ -206,7 +257,12 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
                   )}
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-xs font-black text-slate-400 uppercase tracking-widest">ผลลัพธ์ ({result.length} รายการ)</p>
-                    <button onClick={() => exportCSV(result)} className="flex items-center gap-2 bg-indigo-600 text-white font-bold text-xs px-4 py-2 rounded-xl hover:bg-indigo-700"><Download size={14} /> Download CSV</button>
+                    <div className="flex gap-2">
+                       <button onClick={() => exportCSV(result)} className="flex items-center gap-2 bg-slate-100 text-slate-600 font-bold text-xs px-4 py-2 rounded-xl hover:bg-slate-200"><Download size={14} /> CSV</button>
+                       {hasGSheet && (
+                         <button onClick={() => setTab('howto')} className="flex items-center gap-2 bg-emerald-600 text-white font-bold text-xs px-4 py-2 rounded-xl hover:bg-emerald-700 animate-fadeUp"><ExternalLink size={14} /> Sync Google Sheet</button>
+                       )}
+                    </div>
                   </div>
                   <div className="overflow-x-auto rounded-xl border border-slate-200">
                     <table className="w-full text-xs">
@@ -235,9 +291,12 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
                   <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">🚀 เริ่มต้นจาก Template สำเร็จรูป</p>
                   <div className="grid md:grid-cols-3 gap-4">
                     {PRESETS.map((p, i) => (
-                      <button key={i} onClick={() => usePreset(p)} className="bg-white border border-slate-200 rounded-2xl p-5 text-left hover:border-indigo-300 hover:shadow-md transition-all group">
-                        <h4 className="font-bold text-slate-900 mb-1 group-hover:text-indigo-600 transition-colors">{p.name}</h4>
-                        <p className="text-xs text-slate-400 mb-3">{p.desc}</p>
+                      <button key={i} onClick={() => usePreset(p)} className="bg-white border border-slate-200 rounded-2xl p-5 text-left hover:border-indigo-300 hover:shadow-md transition-all group relative overflow-hidden">
+                        <div className="flex justify-between items-start mb-1">
+                          <h4 className="font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">{p.name}</h4>
+                          <span className={`text-[8px] font-black uppercase tracking-tighter px-2 py-0.5 rounded-full ${p.tier === 'Pro' ? 'bg-amber-100 text-amber-600' : 'bg-indigo-100 text-indigo-600'}`}>{p.tier}</span>
+                        </div>
+                        <p className="text-xs text-slate-400 mb-3 line-clamp-1">{p.desc}</p>
                         <div className="flex gap-1 flex-wrap">{p.columns.map((c, ci) => <span key={ci} className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold">{c.name}</span>)}</div>
                       </button>
                     ))}
@@ -319,7 +378,7 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
                   </div>
                   <div>
                     <p className="font-bold text-slate-900 text-sm">{doc.original_filename || doc.filename}</p>
-                    <p className="text-[10px] text-slate-400">{new Date(doc.created_at).toLocaleString('th-TH')} · {doc.page_count} หน้า</p>
+                    <p className="text-[10px] text-slate-400">{new Date(doc.created_at).toLocaleString('th-TH')} · {doc.page_count} {doc.filename === 'Text Input' ? 'Credit' : 'หน้า'}</p>
                   </div>
                 </div>
                 {doc.status === 'completed' && doc.data && (

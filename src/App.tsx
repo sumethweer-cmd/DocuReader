@@ -62,8 +62,20 @@ function AppContent() {
   }, [])
 
   const fetchProfile = async (userId: string) => {
-    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
-    if (data) setUserProfile(data as UserProfile)
+    const { data: profile } = await supabase.from('profiles').select('*').eq('id', userId).single()
+    if (profile) {
+      const { data: plan } = await supabase.from('pricing_plans')
+        .select('max_columns, max_templates, has_googlesheets')
+        .ilike('name', profile.tier.replace('_', ' '))
+        .single()
+      
+      setUserProfile({
+        ...profile,
+        max_columns: plan?.max_columns || 4,
+        max_templates: plan?.max_templates || 3,
+        has_googlesheets: plan?.has_googlesheets || false
+      } as UserProfile)
+    }
   }
 
   const fetchPricing = async () => {

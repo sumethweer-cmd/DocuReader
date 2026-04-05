@@ -71,12 +71,12 @@ export default function LandingPage({ pricingPlans, useCases, setView, userProfi
           </h1>
 
           <p className="text-lg md:text-xl text-slate-500 max-w-2xl mx-auto mb-10 leading-relaxed font-body">
-            แปลงใบเสร็จ, ใบแจ้งหนี้, สัญญา หรือเอกสารทุกประเภทให้เป็นตาราง CSV หรือส่งตรงไป Google Sheets — <span className="text-slate-800 font-semibold">เริ่มต้นฟรี 8 หน้า</span>
+            แปลงใบเสร็จ, ใบแจ้งหนี้, สัญญา หรือเอกสารทุกประเภทให้เป็นตาราง CSV หรือส่งตรงไป Google Sheets — <span className="text-slate-800 font-semibold">เริ่มต้นฟรี 5 หน้า</span>
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <button onClick={() => setView('auth')} className="w-full sm:w-auto bg-indigo-600 text-white font-bold px-10 py-4 rounded-2xl shadow-xl shadow-indigo-200 hover:bg-indigo-700 active:scale-95 transition-all text-sm flex items-center justify-center gap-2">
-              เริ่มใช้งานฟรี (8 หน้า) <ArrowRight size={16} />
+              เริ่มใช้งานฟรี (5 หน้า) <ArrowRight size={16} />
             </button>
             <button className="flex items-center gap-3 text-slate-600 font-bold text-sm hover:text-indigo-600 transition-colors group px-4">
               <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-indigo-50 transition-all border border-slate-200"><PlayCircle size={20} /></div>
@@ -169,12 +169,12 @@ export default function LandingPage({ pricingPlans, useCases, setView, userProfi
           <div className="text-center mb-16">
             <p className="text-rose-500 font-black uppercase tracking-[0.2em] text-[10px] mb-3">PRICING</p>
             <h2 className="text-3xl md:text-5xl font-headline font-black tracking-tight text-slate-900">เลือกแพ็กเกจที่เหมาะกับคุณ</h2>
-            <p className="text-slate-500 mt-3 text-sm">1 เครดิต = 1 หน้าเอกสาร · เครดิตไม่มีวันหมดอายุ</p>
+            <p className="text-slate-500 mt-3 text-sm">2 เครดิต = 1 หน้าเอกสาร (หรือ 300 คำ) · เครดิตไม่มีวันหมดอายุ</p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6 items-stretch mb-8">
-            {paidPlans.map((plan, idx) => {
-              const isPopular = idx === 1
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch mb-8">
+            {paidPlans.map((plan) => {
+              const isPopular = plan.name === 'Starter Plus'
               const hasDiscount = plan.original_price > plan.price_amount && plan.price_amount > 0
               const features: string[] = typeof plan.features === 'string' ? JSON.parse(plan.features) : plan.features
               return (
