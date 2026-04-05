@@ -155,7 +155,18 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div>
-            <div className="flex items-center gap-2 mb-1"><div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" /><span className="text-[10px] font-black uppercase tracking-widest text-slate-400">ระบบออนไลน์</span></div>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 mr-2">ระบบออนไลน์</span>
+              <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                userProfile?.tier === 'pro' ? 'bg-amber-100 text-amber-600' :
+                userProfile?.tier === 'starter plus' ? 'bg-emerald-100 text-emerald-600' :
+                userProfile?.tier === 'starter' ? 'bg-indigo-100 text-indigo-600' :
+                'bg-slate-100 text-slate-600'
+              }`}>
+                {userProfile?.tier || 'Free Plan'}
+              </span>
+            </div>
             <h1 className="text-3xl font-headline font-black text-slate-900 tracking-tight">จัดการเอกสาร</h1>
           </div>
           <div className="flex items-center gap-3">

@@ -50,12 +50,18 @@ function AppContent() {
     const urlParams = new URLSearchParams(window.location.search)
     if (urlParams.get('payment') === 'success') {
       window.history.replaceState({}, '', window.location.pathname)
-      // Usually would show a toast here, but Toast is inside AppContent
-      // We will set a small timeout for toast to appear
-      setTimeout(() => alert('ชำระเงินสำเร็จ! กำลังปรับปรุงข้อมูลเครดิตของคุณ (อาจใช้เวลา 1-2 นาที)'), 500)
+      toast('success', 'ชำระเงินสำเร็จ! กำลังปรับปรุงข้อมูลเครดิตของคุณ...')
+      // Try to refresh profile immediately and after a short delay
+      supabase.auth.getSession().then(({ data: { session: s } }) => {
+        if (s) {
+          fetchProfile(s.user.id)
+          setTimeout(() => fetchProfile(s.user.id), 3000)
+          setTimeout(() => fetchProfile(s.user.id), 8000)
+        }
+      })
     } else if (urlParams.get('payment') === 'canceled') {
       window.history.replaceState({}, '', window.location.pathname)
-      setTimeout(() => alert('ยกเลิกการชำระเงินแล้ว'), 500)
+      toast('error', 'ยกเลิกการชำระเงินแล้ว')
     }
 
     return () => subscription.unsubscribe()

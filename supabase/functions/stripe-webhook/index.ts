@@ -30,9 +30,14 @@ Deno.serve(async (req: Request) => {
 
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
+      console.log('--- Checkout Session Completed ---');
+      console.log('Session ID:', session.id);
+      console.log('Metadata:', session.metadata);
+
       const { userId, planId, tier, credits } = session.metadata || {};
 
       if (userId && planId && tier && credits) {
+        console.log(`Processing update for User: ${userId}, Tier: ${tier}, Credits: ${credits}`);
         const creditsToAdd = parseInt(credits, 10);
         
         const { data: profile } = await adminSupabase.from('profiles').select('credits').eq('id', userId).single();
