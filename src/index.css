@@ -1,0 +1,4 @@
+/* Cleared out old dark-mode styles to prevent clashing with the Stitch Light Theme */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
