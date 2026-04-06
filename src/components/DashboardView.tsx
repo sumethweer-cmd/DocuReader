@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Coins, Plus, FileText, Upload, Download, X, Loader2, Copy, ExternalLink, CheckCircle2, Trash2, ArrowUp, ArrowDown, HelpCircle, Table, Zap, AlertCircle } from 'lucide-react'
+import { Coins, Plus, FileText, Upload, Download, X, Loader2, Copy, ExternalLink, CheckCircle2, Trash2, ArrowUp, ArrowDown, HelpCircle, Table, Zap, AlertCircle, Files, Info } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useToast } from './Toast'
 import type { View, UserProfile, ExtractionTemplate, TemplateColumn, Document } from '../types'
@@ -31,11 +31,13 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
   // Input state
   const [inputMode, setInputMode] = useState<'file' | 'text'>('file')
   const fileRef = useRef<HTMLInputElement>(null)
-  const [uploadFile, setUploadFile] = useState<File | null>(null)
+  const [uploadFiles, setUploadFiles] = useState<File[]>([])
   const [textContent, setTextContent] = useState('')
   const [selectedTemplate, setSelectedTemplate] = useState('')
   const [pageCount, setPageCount] = useState(1)
   const [processing, setProcessing] = useState(false)
+  const [processingIndex, setProcessingIndex] = useState(-1)
+  const [fileStatuses, setFileStatuses] = useState<('waiting' | 'processing' | 'done' | 'error')[]>([])
   const [result, setResult] = useState<Record<string, unknown>[] | null>(null)
   const [resultMeta, setResultMeta] = useState<{ credits_used: number; credits_remaining: number; tokens_used: number } | null>(null)
   const [docs, setDocs] = useState<Document[]>([])
@@ -79,47 +81,97 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
   const usePreset = (preset: typeof PRESETS[0]) => { setTplName(preset.name); setTplDesc(preset.desc); setTplCols(preset.columns.slice(0, maxCols)); setTplCustomPrompt(''); setShowBuilder(true); setTab('templates') }
   const deleteTemplate = async (id: string) => { const { error } = await supabase.from('extraction_templates').delete().eq('id', id); if (error) toast('error', error.message); else { toast('success', 'ลบ Template แล้ว'); fetchTemplates() } }
 
-  // === AI Processing ===
+  // === AI Processing (supports single file, text, or multi-file queue) ===
+  const processSingleFile = async (file: File, session: any, templateId: string, credits: number): Promise<{ data: Record<string, unknown>[]; meta: { credits_used: number; credits_remaining: number; tokens_used: number } }> => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('page_count', String(credits))
+    formData.append('template_id', templateId)
+    const res = await fetch(`https://sdnghecdrsukdgbxsjfl.supabase.co/functions/v1/process-document`, {
+      method: 'POST', headers: { 'Authorization': `Bearer ${session.access_token}` }, body: formData
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'ประมวลผลล้มเหลว')
+    let parsed = data.extracted_data
+    if (typeof parsed === 'string') {
+      try {
+        let clean = parsed.trim()
+        if (clean.startsWith('```')) clean = clean.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '').trim()
+        parsed = JSON.parse(clean)
+      } catch { parsed = [{ raw_text: parsed }] }
+    }
+    if (!Array.isArray(parsed)) parsed = [parsed]
+    return { data: parsed, meta: { credits_used: data.credits_used, credits_remaining: data.credits_remaining, tokens_used: data.tokens_used } }
+  }
+
   const processDocument = async () => {
-    if (inputMode === 'file' && !uploadFile) { toast('error', 'กรุณาเลือกไฟล์'); return }
+    if (inputMode === 'file' && uploadFiles.length === 0) { toast('error', 'กรุณาเลือกไฟล์'); return }
     if (inputMode === 'text' && !textContent.trim()) { toast('error', 'กรุณาใส่ข้อความ'); return }
-    if (!selectedTemplate) { toast('error', 'กรุณาเลือก Template เพื่อใช้งาน (ระบบบังคับเลือกเพื่อความแม่นยำสูงสุด)'); return }
+    if (!selectedTemplate) { toast('error', 'กรุณาเลือก Template ก่อนเริ่มประมวลผล'); return }
     if (!userProfile || userProfile.credits < pageCount) { toast('error', `เครดิตไม่เพียงพอ (ต้องการ ${pageCount}, มี ${userProfile?.credits || 0})`); return }
     setProcessing(true); setResult(null); setResultMeta(null)
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) throw new Error('กรุณาเข้าสู่ระบบใหม่')
-      const formData = new FormData()
-      if (inputMode === 'file' && uploadFile) {
-        formData.append('file', uploadFile)
-      } else {
+
+      if (inputMode === 'text') {
+        // Text mode (single)
+        const formData = new FormData()
         formData.append('text_content', textContent)
-      }
-      formData.append('page_count', String(pageCount))
-      if (selectedTemplate) formData.append('template_id', selectedTemplate)
-      const res = await fetch(`https://sdnghecdrsukdgbxsjfl.supabase.co/functions/v1/process-document`, {
-        method: 'POST', headers: { 'Authorization': `Bearer ${session.access_token}` }, body: formData
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'ประมวลผลล้มเหลว')
-      // Safety net: parse if API returns string instead of object
-      let parsed = data.extracted_data
-      if (typeof parsed === 'string') {
-        try {
-          let clean = parsed.trim()
-          if (clean.startsWith('```')) clean = clean.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '').trim()
-          parsed = JSON.parse(clean)
-        } catch {
-          parsed = [{ raw_text: parsed }]
+        formData.append('page_count', String(pageCount))
+        formData.append('template_id', selectedTemplate)
+        const res = await fetch(`https://sdnghecdrsukdgbxsjfl.supabase.co/functions/v1/process-document`, {
+          method: 'POST', headers: { 'Authorization': `Bearer ${session.access_token}` }, body: formData
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'ประมวลผลล้มเหลว')
+        let parsed = data.extracted_data
+        if (typeof parsed === 'string') {
+          try {
+            let clean = parsed.trim()
+            if (clean.startsWith('```')) clean = clean.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '').trim()
+            parsed = JSON.parse(clean)
+          } catch { parsed = [{ raw_text: parsed }] }
         }
+        if (!Array.isArray(parsed)) parsed = [parsed]
+        setResult(parsed)
+        setResultMeta({ credits_used: data.credits_used, credits_remaining: data.credits_remaining, tokens_used: data.tokens_used })
+        toast('success', `สำเร็จ! ใช้ ${data.credits_used} เครดิต`)
+      } else {
+        // Multi-file mode
+        const statuses: ('waiting' | 'processing' | 'done' | 'error')[] = uploadFiles.map(() => 'waiting' as const)
+        setFileStatuses([...statuses])
+        let allResults: Record<string, unknown>[] = []
+        let totalCreditsUsed = 0
+        let lastRemaining = 0
+        let totalTokens = 0
+
+        for (let i = 0; i < uploadFiles.length; i++) {
+          setProcessingIndex(i)
+          statuses[i] = 'processing'
+          setFileStatuses([...statuses])
+          try {
+            const creditsForFile = i === 0 ? pageCount : Math.max(1, pageCount) // Use pageCount for first, auto for rest
+            const result = await processSingleFile(uploadFiles[i], session, selectedTemplate, creditsForFile)
+            allResults = [...allResults, ...result.data.map(row => ({ _ไฟล์ต้นทาง: uploadFiles[i].name, ...row }))]
+            totalCreditsUsed += result.meta.credits_used
+            lastRemaining = result.meta.credits_remaining
+            totalTokens += result.meta.tokens_used
+            statuses[i] = 'done'
+          } catch {
+            statuses[i] = 'error'
+          }
+          setFileStatuses([...statuses])
+        }
+        setProcessingIndex(-1)
+        setResult(allResults)
+        setResultMeta({ credits_used: totalCreditsUsed, credits_remaining: lastRemaining, tokens_used: totalTokens })
+        const doneCount = statuses.filter(s => s === 'done').length
+        toast('success', `เสร็จสิ้น! ประมวลผลสำเร็จ ${doneCount}/${uploadFiles.length} ไฟล์ (ใช้ ${totalCreditsUsed} เครดิต)`)
       }
-      if (!Array.isArray(parsed)) parsed = [parsed]
-      setResult(parsed)
-      setResultMeta({ credits_used: data.credits_used, credits_remaining: data.credits_remaining, tokens_used: data.tokens_used })
-      toast('success', `สำเร็จ! ใช้ ${data.credits_used} เครดิต`)
       refreshProfile(); fetchDocs()
     } catch (err: unknown) { toast('error', err instanceof Error ? err.message : 'เกิดข้อผิดพลาด') }
-    finally { setProcessing(false) }
+    finally { setProcessing(false); setProcessingIndex(-1) }
   }
 
   const exportCSV = (data: Record<string, unknown>[]) => {
@@ -134,40 +186,49 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
 
   const [detectedPages, setDetectedPages] = useState(0)
 
-  const handleFileSelect = (file: File) => {
-    setUploadFile(file)
-    if (file.type === 'application/pdf') {
+  const countPdfPages = (file: File): Promise<number> => {
+    return new Promise((resolve) => {
       const reader = new FileReader()
       reader.onload = (e) => {
         const content = e.target?.result as string
-
-        // วิธี 1: หา /Count N จาก Pages dictionary (แม่นยำที่สุด)
         const countMatches = content.match(/\/Count\s+(\d+)/g)
         if (countMatches) {
-          const counts = countMatches.map(m => {
-            const num = m.match(/\d+/)
-            return num ? parseInt(num[0]) : 0
-          })
+          const counts = countMatches.map(m => { const num = m.match(/\d+/); return num ? parseInt(num[0]) : 0 })
           const maxCount = Math.max(...counts)
-          if (maxCount > 0) {
-            setDetectedPages(maxCount)
-            setPageCount(maxCount)
-            return
-          }
+          if (maxCount > 0) { resolve(maxCount); return }
         }
-
-        // วิธี 2: นับ /Type /Page (ไม่รวม /Type /Pages ที่เป็น parent)
         const pageMatches = content.match(/\/Type\s*\/Page(?!s)\b/g)
-        const count = pageMatches ? pageMatches.length : 1
-        setDetectedPages(count)
-        setPageCount(count)
+        resolve(pageMatches ? pageMatches.length : 1)
       }
-      // อ่านไฟล์ทั้งหมด (ไม่ใช่แค่ 1MB แรก)
       reader.readAsText(file)
-    } else {
-      setDetectedPages(1)
-      setPageCount(1)
+    })
+  }
+
+  const handleFilesSelect = async (files: FileList) => {
+    const fileArray = Array.from(files)
+    setUploadFiles(fileArray)
+    setFileStatuses(fileArray.map(() => 'waiting'))
+    setResult(null)
+
+    // Count total pages for credit estimation
+    let totalPages = 0
+    for (const file of fileArray) {
+      if (file.type === 'application/pdf') {
+        const pages = await countPdfPages(file)
+        totalPages += pages
+      } else {
+        totalPages += 1
+      }
     }
+    setDetectedPages(totalPages)
+    setPageCount(totalPages)
+  }
+
+  const removeFile = (index: number) => {
+    const newFiles = uploadFiles.filter((_, i) => i !== index)
+    setUploadFiles(newFiles)
+    setFileStatuses(newFiles.map(() => 'waiting'))
+    if (newFiles.length === 0) { setDetectedPages(0); setPageCount(1) }
   }
 
   const handleTextChange = (text: string) => {
@@ -230,21 +291,55 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
               </div>
 
               {inputMode === 'file' ? (
-                <div onClick={() => fileRef.current?.click()} className={`border-2 border-dashed rounded-3xl p-8 flex flex-col items-center justify-center gap-3 transition-all cursor-pointer group ${uploadFile ? 'border-indigo-400 bg-indigo-50/50' : 'border-slate-300 hover:border-indigo-400 hover:bg-white bg-white/50'}`}>
-                  <input ref={fileRef} type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={e => { if (e.target.files?.[0]) handleFileSelect(e.target.files[0]) }} />
-                  {uploadFile ? (
-                    <>
-                      <div className="w-14 h-14 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-600"><FileText size={24} /></div>
-                      <p className="text-sm font-bold text-slate-900 text-center truncate max-w-full">{uploadFile.name}</p>
-                      <p className="text-[10px] text-slate-400">{(uploadFile.size / 1024).toFixed(0)} KB</p>
-                      <button onClick={e => { e.stopPropagation(); setUploadFile(null); setResult(null) }} className="text-[10px] text-rose-500 font-bold hover:underline">เปลี่ยนไฟล์</button>
-                    </>
-                  ) : (
-                    <>
-                      <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-300 group-hover:text-indigo-600 group-hover:bg-indigo-50 transition-all"><Upload size={24} /></div>
-                      <p className="text-sm font-bold text-slate-600 group-hover:text-slate-700 text-center">ลากไฟล์วางที่นี่<br />หรือคลิกเพื่อเลือก</p>
-                      <p className="text-[10px] text-slate-300">PDF, JPG, PNG (สูงสุด 20MB)</p>
-                    </>
+                <div className="space-y-3">
+                  {/* Drop Zone */}
+                  <div onClick={() => fileRef.current?.click()} className={`border-2 border-dashed rounded-3xl p-6 flex flex-col items-center justify-center gap-2 transition-all cursor-pointer group ${uploadFiles.length > 0 ? 'border-indigo-400 bg-indigo-50/30' : 'border-slate-300 hover:border-indigo-400 hover:bg-white bg-white/50'}`}>
+                    <input ref={fileRef} type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple onChange={e => { if (e.target.files && e.target.files.length > 0) handleFilesSelect(e.target.files) }} />
+                    <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-300 group-hover:text-indigo-600 group-hover:bg-indigo-50 transition-all">{uploadFiles.length > 0 ? <Files size={22} /> : <Upload size={22} />}</div>
+                    <p className="text-sm font-bold text-slate-600 group-hover:text-slate-700 text-center">{uploadFiles.length > 0 ? `เลือกไฟล์แล้ว ${uploadFiles.length} ไฟล์ (กดเพื่อเปลี่ยน)` : 'ลากไฟล์วางที่นี่ หรือคลิกเพื่อเลือก'}</p>
+                    <p className="text-[10px] text-slate-400 font-bold">เลือกได้หลายไฟล์พร้อมกัน (Ctrl+Click)</p>
+                  </div>
+
+                  {/* Supported Files Info */}
+                  <div className="flex items-start gap-2 p-3 bg-blue-50 rounded-xl border border-blue-100">
+                    <Info size={14} className="text-blue-500 mt-0.5 flex-shrink-0" />
+                    <div className="text-[10px] text-blue-700 font-bold leading-relaxed">
+                      <span className="font-black">ไฟล์ที่รองรับ:</span> PDF, JPG, JPEG, PNG, WEBP<br/>
+                      <span className="font-black">ขนาดสูงสุด:</span> 5 MB ต่อไฟล์ · <span className="font-black">PDF:</span> แนะนำไม่เกิน 30 หน้า
+                    </div>
+                  </div>
+
+                  {/* File Queue */}
+                  {uploadFiles.length > 0 && (
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                      {uploadFiles.map((file, i) => (
+                        <div key={i} className={`flex items-center gap-3 p-2.5 rounded-xl border transition-all ${
+                          fileStatuses[i] === 'done' ? 'bg-emerald-50 border-emerald-200' :
+                          fileStatuses[i] === 'processing' ? 'bg-indigo-50 border-indigo-200' :
+                          fileStatuses[i] === 'error' ? 'bg-rose-50 border-rose-200' :
+                          'bg-white border-slate-200'
+                        }`}>
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                            fileStatuses[i] === 'done' ? 'bg-emerald-100 text-emerald-600' :
+                            fileStatuses[i] === 'processing' ? 'bg-indigo-100 text-indigo-600' :
+                            fileStatuses[i] === 'error' ? 'bg-rose-100 text-rose-600' :
+                            'bg-slate-100 text-slate-400'
+                          }`}>
+                            {fileStatuses[i] === 'done' ? <CheckCircle2 size={14} /> :
+                             fileStatuses[i] === 'processing' ? <Loader2 size={14} className="animate-spin" /> :
+                             fileStatuses[i] === 'error' ? <AlertCircle size={14} /> :
+                             <FileText size={14} />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-slate-700 truncate">{file.name}</p>
+                            <p className="text-[9px] text-slate-400">{(file.size / 1024).toFixed(0)} KB</p>
+                          </div>
+                          {!processing && (
+                            <button onClick={() => removeFile(i)} className="text-slate-300 hover:text-rose-500 p-1 flex-shrink-0"><X size={14} /></button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               ) : (
@@ -259,7 +354,7 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
                 </div>
               )}
 
-              {(uploadFile || (inputMode === 'text' && textContent.trim())) && (
+              {(uploadFiles.length > 0 || (inputMode === 'text' && textContent.trim())) && (
                 <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3 animate-fadeUp">
                   {templates.length > 0 && (
                     <div>
@@ -296,8 +391,18 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
               {processing ? (
                 <div className="bg-white border border-slate-200 rounded-3xl p-16 flex flex-col items-center justify-center text-center animate-pulse">
                   <Loader2 size={48} className="text-indigo-400 animate-spin mb-4" />
-                  <p className="text-sm font-bold text-slate-500">AI กำลังอ่านเอกสาร...</p>
-                  <p className="text-xs text-slate-400 mt-1">อาจใช้เวลา 5-15 วินาที</p>
+                  <p className="text-sm font-bold text-slate-500">
+                    {uploadFiles.length > 1 ? `กำลังประมวลผลไฟล์ ${processingIndex + 1} / ${uploadFiles.length}` : 'AI กำลังอ่านเอกสาร...'}
+                  </p>
+                  {uploadFiles.length > 1 && processingIndex >= 0 && (
+                    <p className="text-xs text-indigo-600 font-bold mt-1 truncate max-w-xs">{uploadFiles[processingIndex]?.name}</p>
+                  )}
+                  <p className="text-xs text-slate-400 mt-1">อาจใช้เวลา 5-15 วินาทีต่อไฟล์</p>
+                  {uploadFiles.length > 1 && (
+                    <div className="w-48 h-1.5 bg-slate-100 rounded-full mt-4 overflow-hidden">
+                      <div className="h-full bg-indigo-500 rounded-full transition-all duration-500" style={{ width: `${((processingIndex + 1) / uploadFiles.length) * 100}%` }} />
+                    </div>
+                  )}
                 </div>
               ) : result ? (
                 <div className="bg-white border border-slate-200 rounded-3xl p-6 animate-fadeUp">
