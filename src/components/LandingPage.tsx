@@ -116,7 +116,7 @@ export default function LandingPage({ pricingPlans, useCases, setView, userProfi
               <div key={item.step} className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all animate-fadeUp group">
                 <div className="flex items-center gap-4 mb-6">
                   <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all">{item.icon}</div>
-                  <span className="text-5xl font-headline font-black text-slate-100 group-hover:text-indigo-100 transition-colors">{item.step}</span>
+                  <span className="text-5xl font-headline font-black text-slate-300 group-hover:text-indigo-200 transition-colors">{item.step}</span>
                 </div>
                 <h3 className="text-lg font-headline font-black text-slate-900 mb-2">{item.title}</h3>
                 <p className="text-sm text-slate-500 leading-relaxed">{item.desc}</p>
