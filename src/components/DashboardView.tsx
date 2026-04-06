@@ -62,6 +62,7 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
   const [docs, setDocs] = useState<Document[]>([])
 
   const [isDragging, setIsDragging] = useState(false)
+  const [filePageCounts, setFilePageCounts] = useState<number[]>([])
   const maxCols = userProfile?.max_columns || 4
   const maxTemplates = userProfile?.max_templates || 3
   const hasGSheet = userProfile?.has_googlesheets || false
@@ -196,12 +197,20 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
           statuses[i] = 'processing'
           setFileStatuses([...statuses])
           try {
-            const creditsForFile = i === 0 ? pageCount : Math.max(1, pageCount) // Use pageCount for first, auto for rest
-            const result = await processSingleFile(uploadFiles[i], session, selectedTemplate, creditsForFile)
-            allResults = [...allResults, ...result.data.map(row => ({ _ไฟล์ต้นทาง: uploadFiles[i].name, ...row }))]
-            totalCreditsUsed += result.meta.credits_used
-            lastRemaining = result.meta.credits_remaining
-            totalTokens += result.meta.tokens_used
+            const creditsForFile = Math.max(1, (filePageCounts[i] || 1) * 2)
+            const resultData = await processSingleFile(uploadFiles[i], session, selectedTemplate, creditsForFile)
+            
+            // Enrich each row with file and page metadata
+            const enriched = resultData.data.map((row, rowIdx) => ({
+              _ไฟล์ต้นทาง: uploadFiles[i].name,
+              _หน้า: `${rowIdx + 1} / ${resultData.data.length}`,
+              ...row
+            }))
+            
+            allResults = [...allResults, ...enriched]
+            totalCreditsUsed += resultData.meta.credits_used
+            lastRemaining = resultData.meta.credits_remaining
+            totalTokens += resultData.meta.tokens_used
             statuses[i] = 'done'
           } catch {
             statuses[i] = 'error'
@@ -231,14 +240,17 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
     setFileStatuses(statuses)
 
     try {
-      const creditsForFile = index === 0 ? pageCount : Math.max(1, pageCount)
+      const creditsForFile = Math.max(1, (filePageCounts[index] || 1) * 2)
       const res = await processSingleFile(uploadFiles[index], session, selectedTemplate, creditsForFile)
       
-      // Update results
-      const newResults = res.data.map(row => ({ _ไฟล์ต้นทาง: uploadFiles[index].name, ...row }))
-      setResult(prev => prev ? [...prev, ...newResults] : newResults)
+      const enriched = res.data.map((row, rowIdx) => ({
+        _ไฟล์ต้นทาง: uploadFiles[index].name,
+        _หน้า: `${rowIdx + 1} / ${res.data.length}`,
+        ...row
+      }))
       
-      // Update meta
+      setResult(prev => prev ? [...prev, ...enriched] : enriched)
+      
       setResultMeta(prev => ({
         credits_used: (prev?.credits_used || 0) + res.meta.credits_used,
         credits_remaining: res.meta.credits_remaining,
@@ -268,11 +280,20 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
   const exportCSV = (data: Record<string, unknown>[]) => {
     if (!data.length) return
     const keys = Object.keys(data[0])
-    const csv = [keys.join(','), ...data.map(row => keys.map(k => `"${String(row[k] ?? '').replace(/"/g, '""')}"`).join(','))].join('\n')
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+    const csv = [
+      keys.join(','),
+      ...data.map(row => keys.map(k => `"${String(row[k] ?? '').replace(/"/g, '""')}"`).join(','))
+    ].join('\n')
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
-    const a = document.createElement('a'); a.href = url; a.download = `p-admin-export-${Date.now()}.csv`; a.click()
-    URL.revokeObjectURL(url); toast('success', 'ดาวน์โหลด CSV สำเร็จ!')
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `doc-reader-export-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    toast('success', 'ดาวน์โหลด CSV เรียบร้อย!')
   }
 
   const [detectedPages, setDetectedPages] = useState(0)
@@ -301,26 +322,33 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
     setFileStatuses(fileArray.map(() => 'waiting'))
     setResult(null)
 
-    // Count total pages for credit estimation
     let totalPages = 0
+    const counts: number[] = []
     for (const file of fileArray) {
+      let pages = 1
       if (file.type === 'application/pdf') {
-        const pages = await countPdfPages(file)
-        totalPages += pages
-      } else {
-        totalPages += 1
+        pages = await countPdfPages(file)
       }
+      counts.push(pages)
+      totalPages += pages
     }
     setDetectedPages(totalPages)
-    setPageCount(totalPages)
+    setFilePageCounts(counts)
+    setPageCount(totalPages * 2)
   }
 
   const removeFile = (index: number) => {
     const newFiles = uploadFiles.filter((_, i) => i !== index)
+    const newCounts = filePageCounts.filter((_, i) => i !== index)
     setUploadFiles(newFiles)
+    setFilePageCounts(newCounts)
     setFileStatuses(newFiles.map(() => 'waiting'))
-    if (newFiles.length === 0) { setDetectedPages(0); setPageCount(1); setResult(null); setResultMeta(null) }
+    const total = newCounts.reduce((acc, c) => acc + c, 0)
+    setDetectedPages(total)
+    setPageCount(total > 0 ? total * 2 : 2)
+    if (newFiles.length === 0) { setResult(null); setResultMeta(null) }
   }
+
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
@@ -449,15 +477,16 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-bold text-slate-700 truncate">{file.name}</p>
-                            <p className="text-[9px] text-slate-400">{(file.size / 1024).toFixed(0)} KB</p>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[9px] text-slate-400">{(file.size / 1024).toFixed(0)} KB</span>
+                              {filePageCounts[i] > 0 && <span className="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-black">{filePageCounts[i]} {file.type === 'application/pdf' ? 'หน้า' : 'Cr'}</span>}
+                            </div>
                           </div>
                           <div className="flex items-center gap-1 ml-auto">
                             {fileStatuses[i] === 'error' && !processing && (
                               <button onClick={(e) => { e.stopPropagation(); retryFile(i) }} className="text-indigo-600 hover:text-indigo-800 p-1 bg-white rounded-lg border border-slate-200 shadow-sm" title="ลองใหม่เฉพาะใบนี้"><RotateCcw size={14} /></button>
                             )}
-                            {!processing && (
-                              <button onClick={(e) => { e.stopPropagation(); removeFile(i) }} className="text-slate-300 hover:text-rose-500 p-1 flex-shrink-0"><X size={14} /></button>
-                            )}
+                            <button onClick={(e) => { e.stopPropagation(); removeFile(i) }} className="text-slate-300 hover:text-rose-500 p-1 flex-shrink-0" title="ลบออกจากคิว"><X size={14} /></button>
                           </div>
                         </div>
                       ))}
@@ -497,7 +526,7 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
                   <div>
                     <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-1">จำนวนเครดิตที่ต้องการใช้</p>
                     <input type="number" min={1} max={100} value={pageCount} onChange={e => setPageCount(Math.max(1, Number(e.target.value)))} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold" />
-                    <p className="text-[9px] text-slate-400 mt-1 font-bold">ปรับได้เอง (1 เครดิต = 1 หน้า, ระบบจะนับหน้าอัตโนมัติ)</p>
+                    <p className="text-[9px] text-slate-400 mt-1 font-bold">ปรับได้เอง (2 เครดิต = 1 หน้า, ระบบจะนับหน้าอัตโนมัติ)</p>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-amber-50 rounded-xl border border-amber-100">
                     <span className="text-xs font-bold text-amber-700">เครดิตที่จะหัก</span>
@@ -739,26 +768,66 @@ function doPost(e) {
 
         {/* ========== History Tab ========== */}
         {tab === 'history' && (
-          docs.length === 0 ? (
-            <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center"><FileText size={48} className="text-slate-200 mx-auto mb-3" /><p className="text-sm font-bold text-slate-400">ยังไม่มีประวัติการประมวลผล</p></div>
-          ) : (
-            <div className="space-y-3">{docs.map(doc => (
-              <div key={doc.id} className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between hover:shadow-sm transition-all">
-                <div className="flex items-center gap-4">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${doc.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : doc.status === 'failed' ? 'bg-rose-50 text-rose-600' : 'bg-amber-50 text-amber-600'}`}>
-                    {doc.status === 'completed' ? <CheckCircle2 size={18} /> : doc.status === 'failed' ? <AlertCircle size={18} /> : <Loader2 size={18} className="animate-spin" />}
-                  </div>
-                  <div>
-                    <p className="font-bold text-slate-900 text-sm">{doc.original_filename || doc.filename}</p>
-                    <p className="text-[10px] text-slate-600 font-bold">{new Date(doc.created_at).toLocaleString('th-TH')} · {doc.page_count} {doc.filename === 'Text Input' ? 'Credit' : 'หน้า'}</p>
-                  </div>
-                </div>
-                {doc.status === 'completed' && doc.data && (
-                  <button onClick={() => exportCSV(doc.data as unknown as Record<string, unknown>[])} className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"><Download size={12} /> CSV</button>
-                )}
+          <div className="space-y-6">
+            <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-headline font-black text-slate-900">📑 ประวัติและการใช้เครดิต</h3>
+                <p className="text-xs text-slate-500 font-bold">บันทึกรายการที่คุณเคยประมวลผลไว้</p>
               </div>
-            ))}</div>
-          )
+              <div className="bg-white p-4 rounded-3xl border border-slate-200 flex items-center gap-4">
+                <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center"><Coins size={20} /></div>
+                <div>
+                   <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">ใช้ไปทั้งหมด (รอบนี้)</p>
+                   <p className="text-lg font-black text-slate-900">{docs.reduce((acc, d) => acc + (d.page_count || 0), 0)} <span className="text-xs">Cr</span></p>
+                </div>
+              </div>
+            </div>
+            
+            {docs.length === 0 ? (
+              <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center"><FileText size={48} className="text-slate-200 mx-auto mb-3" /><p className="text-sm font-bold text-slate-400">ยังไม่มีประวัติการประมวลผล</p></div>
+            ) : (
+              <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden">
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200">
+                      <th className="text-left px-6 py-4 font-black text-slate-500 text-[10px] uppercase tracking-widest">วัน-เวลา</th>
+                      <th className="text-left px-6 py-4 font-black text-slate-500 text-[10px] uppercase tracking-widest">ไฟล์ / รายการ</th>
+                      <th className="text-center px-6 py-4 font-black text-slate-500 text-[10px] uppercase tracking-widest">สถานะ</th>
+                      <th className="text-right px-6 py-4 font-black text-slate-500 text-[10px] uppercase tracking-widest">จำนวนเครดิต</th>
+                      <th className="text-center px-6 py-4 font-black text-slate-500 text-[10px] uppercase tracking-widest">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {docs.map(doc => (
+                      <tr key={doc.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap text-xs font-bold text-slate-400">{new Date(doc.created_at).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                        <td className="px-6 py-4">
+                          <p className="font-bold text-slate-900 text-sm truncate max-w-xs">{doc.original_filename || doc.filename}</p>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{doc.filename === 'Text Input' ? 'Direct Text' : 'File Upload'}</p>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter ${doc.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : doc.status === 'failed' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'}`}>
+                            {doc.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <span className="font-black text-slate-900 text-sm">-{doc.page_count || 0}</span> <span className="text-[10px] font-bold text-slate-400">Cr</span>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                             {doc.status === 'completed' && doc.data && (
+                               <button onClick={() => exportCSV(doc.data as unknown as Record<string, unknown>[])} className="text-slate-400 hover:text-indigo-600 p-2 transition-colors" title="Download CSV"><Download size={16} /></button>
+                             )}
+                             <button onClick={async () => { if(confirm('ต้องการลบประวัตินี้หรือไม่?')) { const {error} = await supabase.from('documents').delete().eq('id', doc.id); if(!error) fetchDocs() } }} className="text-slate-300 hover:text-rose-500 p-2 transition-colors" title="Delete History"><Trash2 size={16} /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          }</div>
         )}
 
         {/* ========== How-to Tab ========== */}
