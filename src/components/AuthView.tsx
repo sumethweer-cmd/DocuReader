@@ -78,6 +78,13 @@ export default function AuthView({ authMode, setAuthMode, handleAuth, email, set
         <button onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')} className="mt-6 text-center w-full text-xs font-bold text-slate-400 hover:text-indigo-600 transition-colors">
           {authMode === 'login' ? 'ยังไม่มีบัญชี? สมัครสมาชิก' : 'มีบัญชีอยู่แล้ว? เข้าสู่ระบบ'}
         </button>
+
+        <div className="mt-8 pt-6 border-t border-slate-100">
+          <p className="text-[10px] text-slate-400 leading-relaxed text-center font-medium">
+            การสมัครใช้งานถือว่าคุณยอมรับ <span className="text-slate-600 font-bold">ข้อตกลงความเป็นส่วนตัว</span><br/>
+            ระบบจะไม่เก็บรักษาไฟล์ต้นฉบับของคุณไว้อย่างถาวร และจะถูกลบออกโดยอัตโนมัติเพื่อความปลอดภัยสูงสุด (ระยะเวลาจัดเก็บขึ้นอยู่กับระดับแพ็กเกจของคุณ)
+          </p>
+        </div>
       </div>
     </div>
   )

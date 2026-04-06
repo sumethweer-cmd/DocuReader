@@ -109,8 +109,8 @@ export default function LandingPage({ pricingPlans, useCases, setView, userProfi
           </div>
           <div className="grid md:grid-cols-3 gap-8 stagger">
             {[
-              { icon: <Upload size={28} />, step: '01', title: 'อัปโหลดเอกสาร', desc: 'ลากไฟล์ PDF หรือรูปภาพวางลงในระบบ รองรับทุกประเภทเอกสาร' },
-              { icon: <Settings size={28} />, step: '02', title: 'ตั้งค่า Template', desc: 'กำหนดคอลัมน์ที่ต้องการ เช่น เลขใบเสร็จ, ชื่อบริษัท, ยอดเงิน ระบบจะจำ template ไว้ใช้ซ้ำ' },
+              { icon: <Settings size={28} />, step: '01', title: 'ตั้งค่า Template', desc: 'กำหนดคอลัมน์ที่ต้องการ เช่น เลขใบเสร็จ, ชื่อบริษัท, ยอดเงิน ระบบจะจำ template ไว้ใช้ซ้ำ' },
+              { icon: <Upload size={28} />, step: '02', title: 'อัปโหลดเอกสาร', desc: 'ลากไฟล์ PDF หรือรูปภาพวางลงในระบบ รองรับทุกประเภทเอกสาร' },
               { icon: <Download size={28} />, step: '03', title: 'ดาวน์โหลดผลลัพธ์', desc: 'Export เป็น CSV หรือเชื่อมต่อ Google Sheets ให้อัปเดตอัตโนมัติ' },
             ].map((item) => (
               <div key={item.step} className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all animate-fadeUp group">
@@ -135,12 +135,12 @@ export default function LandingPage({ pricingPlans, useCases, setView, userProfi
           </div>
           <div className="grid md:grid-cols-3 gap-6 stagger">
             {[
-              { icon: <Brain size={22} />, title: 'AI แม่นยำ 99%', desc: 'ใช้ Gemini AI อ่านเอกสารได้ทั้งภาษาไทยและอังกฤษ', color: 'indigo' },
+              { icon: <Brain size={22} />, title: 'AI เข้าใจคำสั่งพิเศษ', desc: 'สั่งงาน AI ได้ด้วยภาษามนุษย์ สั่งให้คำนวณหรือตรวจสอบเงื่อนไขได้ทันที', color: 'indigo' },
+              { icon: <Globe size={22} />, title: 'รองรับหลายภาษา', desc: 'สกัดข้อมูลจากเอกสารได้ทั่วโลก รองรับทั้งภาษาไทย อังกฤษ จีน ญี่ปุ่น และอื่นๆ', color: 'blue' },
               { icon: <FileText size={22} />, title: 'Template อิสระ', desc: 'กำหนดคอลัมน์ที่ต้องการเองได้เลย บันทึกไว้ใช้ซ้ำ', color: 'emerald' },
-              { icon: <Globe size={22} />, title: 'Google Sheets', desc: 'ส่งข้อมูลตรงไป Google Sheets อัปเดตอัตโนมัติ', color: 'blue' },
-              { icon: <Shield size={22} />, title: 'ปลอดภัย 100%', desc: 'เอกสารเข้ารหัสทุกชั้น ไม่เก็บข้อมูลส่วนตัว', color: 'rose' },
-              { icon: <Zap size={22} />, title: 'ประมวลผลเร็ว', desc: 'ผลลัพธ์ออกมาใน 5-10 วินาทีต่อหน้า', color: 'amber' },
-              { icon: <Download size={22} />, title: 'Export ได้ทันที', desc: 'CSV, Google Sheets หรือคัดลอกข้อมูลได้ทุกรูปแบบ', color: 'violet' },
+              { icon: <Shield size={22} />, title: 'ปลอดภัย 100%', desc: 'เอกสารเข้ารหัสทุกชั้น ไม่มีการเก็บข้อมูลเพื่อนำไปเทรนโมเดลต่อ', color: 'rose' },
+              { icon: <Zap size={22} />, title: 'ประมวลผลเร็ว', desc: 'ผลลัพธ์ออกมาในไม่กี่วินาที ช่วยลดเวลาทำงานได้มากกว่า 90%', color: 'amber' },
+              { icon: <Download size={22} />, title: 'เชื่อมต่ออัตโนมัติ', desc: 'ส่งข้อมูลตรงไป Google Sheets หรือจะโหลดเป็น CSV ก็ได้ทันที', color: 'violet' },
             ].map((f, i) => (
               <div key={i} className={`p-6 rounded-2xl border border-slate-100 hover:border-${f.color}-200 hover:shadow-md transition-all animate-fadeUp`}>
                 <div className={`w-10 h-10 rounded-xl bg-${f.color}-50 text-${f.color}-600 flex items-center justify-center mb-4`}>{f.icon}</div>
@@ -148,6 +148,11 @@ export default function LandingPage({ pricingPlans, useCases, setView, userProfi
                 <p className="text-sm text-slate-500">{f.desc}</p>
               </div>
             ))}
+          </div>
+          <div className="mt-12 p-6 bg-slate-50 rounded-2xl border border-slate-100 text-center">
+            <p className="text-xs text-slate-400 font-bold leading-relaxed max-w-2xl mx-auto">
+              <span className="text-indigo-600">หมายเหตุ :</span> ระบบประมวลผลด้วย AI ขั้นสูง ข้อมูลอาจมีความคลาดเคลื่อนเล็กน้อยในบางกรณี โปรดตรวจสอบความถูกต้องของข้อมูลก่อนนำไปใช้งานเสมอ
+            </p>
           </div>
         </div>
       </section>
