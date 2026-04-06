@@ -160,7 +160,7 @@ export default function LandingPage({ pricingPlans, useCases, setView, userProfi
               <div className="flex-1 relative group">
                 <div className="absolute inset-0 bg-indigo-100 rounded-3xl blur-3xl opacity-30 group-hover:opacity-50 transition-all" />
                 <div className="relative bg-white p-3 rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden transform group-hover:rotate-1 transition-all duration-700">
-                   <img src="/images/step1_template.png" className="w-full h-auto rounded-3xl" alt="Template Setup UI" />
+                   <img src="/images/step1_template_v2.png" className="w-full h-auto rounded-3xl" alt="Template Setup UI" />
                 </div>
               </div>
             </div>
@@ -215,17 +215,25 @@ export default function LandingPage({ pricingPlans, useCases, setView, userProfi
           </div>
           <div className="grid md:grid-cols-3 gap-6 stagger">
             {[
-              { icon: <Brain size={22} />, title: 'AI เข้าใจคำสั่งพิเศษ', desc: 'สั่งงาน AI ได้ด้วยภาษามนุษย์ สั่งให้คำนวณหรือตรวจสอบเงื่อนไขได้ทันที', color: 'indigo' },
-              { icon: <Globe size={22} />, title: 'รองรับหลายภาษา', desc: 'สกัดข้อมูลจากเอกสารได้ทั่วโลก รองรับทั้งภาษาไทย อังกฤษ จีน ญี่ปุ่น และอื่นๆ', color: 'blue' },
-              { icon: <FileText size={22} />, title: 'Template อิสระ', desc: 'กำหนดคอลัมน์ที่ต้องการเองได้เลย บันทึกไว้ใช้ซ้ำ', color: 'emerald' },
-              { icon: <Shield size={22} />, title: 'ปลอดภัย 100%', desc: 'เอกสารเข้ารหัสทุกชั้น ไม่มีการเก็บข้อมูลเพื่อนำไปเทรนโมเดลต่อ', color: 'rose' },
-              { icon: <Zap size={22} />, title: 'ประมวลผลเร็ว', desc: 'ผลลัพธ์ออกมาในไม่กี่วินาที ช่วยลดเวลาทำงานได้มากกว่า 90%', color: 'amber' },
-              { icon: <Download size={22} />, title: 'เชื่อมต่ออัตโนมัติ', desc: 'ส่งข้อมูลตรงไป Google Sheets หรือจะโหลดเป็น CSV ก็ได้ทันที', color: 'violet' },
+              { img: '/images/feature_ai.png', icon: <Brain size={18} />, title: 'AI เข้าใจคำสั่งพิเศษ', desc: 'สั่งงาน AI ได้ด้วยภาษามนุษย์ สั่งให้คำนวณหรือตรวจสอบเงื่อนไขได้ทันที', color: 'indigo' },
+              { img: '/images/feature_lang.png', icon: <Globe size={18} />, title: 'รองรับหลายภาษา', desc: 'สกัดข้อมูลจากเอกสารได้ทั่วโลก รองรับทั้งภาษาไทย อังกฤษ จีน ญี่ปุ่น และอื่นๆ', color: 'blue' },
+              { img: '/images/feature_template.png', icon: <FileText size={18} />, title: 'Template อิสระ', desc: 'กำหนดคอลัมน์ที่ต้องการเองได้เลย บันทึกไว้ใช้ซ้ำได้ทันที', color: 'emerald' },
+              { img: '/images/feature_secure.png', icon: <Shield size={18} />, title: 'ปลอดภัย 100%', desc: 'เอกสารเข้ารหัสทุกชั้น ไม่มีการเก็บข้อมูลเพื่อนำไปเทรนโมเดลต่อ มั่นใจได้ในความเป็นส่วนตัว', color: 'rose' },
+              { img: '/images/feature_fast.png', icon: <Zap size={18} />, title: 'ประมวลผลเร็ว', desc: 'ผลลัพธ์ออกมาในไม่กี่วินาที ช่วยลดเวลาทำงานได้มากกว่า 90% ให้คุณมีเวลาไปทำอย่างอื่น', color: 'amber' },
+              { img: '/images/feature_sync.png', icon: <Download size={18} />, title: 'เชื่อมต่ออัตโนมัติ', desc: 'ส่งข้อมูลตรงไป Google Sheets หรือจะโหลดเป็น CSV ก็ได้ทันที สะดวกและรวดเร็ว', color: 'violet' },
             ].map((f, i) => (
-              <div key={i} className={`p-6 rounded-2xl border border-slate-100 hover:border-${f.color}-200 hover:shadow-md transition-all animate-fadeUp`}>
-                <div className={`w-10 h-10 rounded-xl bg-${f.color}-50 text-${f.color}-600 flex items-center justify-center mb-4`}>{f.icon}</div>
-                <h4 className="font-headline font-bold text-slate-900 mb-1">{f.title}</h4>
-                <p className="text-sm text-slate-500">{f.desc}</p>
+              <div key={i} className="group bg-white rounded-3xl border border-slate-100 p-2 shadow-sm hover:shadow-xl hover:border-indigo-100 transition-all duration-500 animate-fadeUp">
+                <div className="aspect-video relative rounded-2xl overflow-hidden mb-4">
+                  <img src={f.img} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt={f.title} />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-900/40 to-transparent" />
+                  <div className={`absolute bottom-3 left-3 w-8 h-8 rounded-lg bg-white/90 backdrop-blur text-indigo-600 flex items-center justify-center shadow-sm`}>
+                    {f.icon}
+                  </div>
+                </div>
+                <div className="px-4 pb-6">
+                  <h4 className="font-headline font-black text-slate-900 mb-2">{f.title}</h4>
+                  <p className="text-xs text-slate-500 font-medium leading-relaxed">{f.desc}</p>
+                </div>
               </div>
             ))}
           </div>
