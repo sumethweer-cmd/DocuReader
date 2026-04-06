@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Coins, Plus, FileText, Upload, Download, X, Loader2, Copy, ExternalLink, CheckCircle2, Trash2, ArrowUp, ArrowDown, HelpCircle, Table, Zap, AlertCircle, Files, Info, Pencil, UserCircle2, Globe } from 'lucide-react'
+import { Coins, Plus, FileText, Upload, Download, X, Loader2, Copy, ExternalLink, CheckCircle2, Trash2, ArrowUp, ArrowDown, HelpCircle, Table, Zap, AlertCircle, Files, Info, Pencil, UserCircle2, Globe, RotateCcw } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useToast } from './Toast'
 import type { View, UserProfile, ExtractionTemplate, TemplateColumn, Document } from '../types'
@@ -61,6 +61,7 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
   const [resultMeta, setResultMeta] = useState<{ credits_used: number; credits_remaining: number; tokens_used: number } | null>(null)
   const [docs, setDocs] = useState<Document[]>([])
 
+  const [isDragging, setIsDragging] = useState(false)
   const maxCols = userProfile?.max_columns || 4
   const maxTemplates = userProfile?.max_templates || 3
   const hasGSheet = userProfile?.has_googlesheets || false
@@ -218,6 +219,52 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
     finally { setProcessing(false); setProcessingIndex(-1) }
   }
 
+  const retryFile = async (index: number) => {
+    if (!uploadFiles[index] || processing) return
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) { toast('error', 'กรุณาเข้าสู่ระบบใหม่'); return }
+    if (!selectedTemplate) { toast('error', 'กรุณาเลือก Template ก่อน'); return }
+
+    setProcessing(true)
+    const statuses = [...fileStatuses]
+    statuses[index] = 'processing'
+    setFileStatuses(statuses)
+
+    try {
+      const creditsForFile = index === 0 ? pageCount : Math.max(1, pageCount)
+      const res = await processSingleFile(uploadFiles[index], session, selectedTemplate, creditsForFile)
+      
+      // Update results
+      const newResults = res.data.map(row => ({ _ไฟล์ต้นทาง: uploadFiles[index].name, ...row }))
+      setResult(prev => prev ? [...prev, ...newResults] : newResults)
+      
+      // Update meta
+      setResultMeta(prev => ({
+        credits_used: (prev?.credits_used || 0) + res.meta.credits_used,
+        credits_remaining: res.meta.credits_remaining,
+        tokens_used: (prev?.tokens_used || 0) + res.meta.tokens_used
+      }))
+
+      statuses[index] = 'done'
+      toast('success', `สำเร็จ! ไฟล์ ${uploadFiles[index].name}`)
+      refreshProfile(); fetchDocs()
+    } catch (err: any) {
+      statuses[index] = 'error'
+      toast('error', err.message || 'ล้มเหลว')
+    } finally {
+      setFileStatuses([...statuses])
+      setProcessing(false)
+    }
+  }
+
+  const retryAllFailed = async () => {
+    const failedIndices = fileStatuses.map((s, i) => s === 'error' ? i : -1).filter(i => i !== -1)
+    if (failedIndices.length === 0) return
+    for (const idx of failedIndices) {
+      await retryFile(idx)
+    }
+  }
+
   const exportCSV = (data: Record<string, unknown>[]) => {
     if (!data.length) return
     const keys = Object.keys(data[0])
@@ -272,7 +319,24 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
     const newFiles = uploadFiles.filter((_, i) => i !== index)
     setUploadFiles(newFiles)
     setFileStatuses(newFiles.map(() => 'waiting'))
-    if (newFiles.length === 0) { setDetectedPages(0); setPageCount(1) }
+    if (newFiles.length === 0) { setDetectedPages(0); setPageCount(1); setResult(null); setResultMeta(null) }
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = () => {
+    setIsDragging(false)
+  }
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFilesSelect(e.dataTransfer.files)
+    }
   }
 
   const handleTextChange = (text: string) => {
@@ -337,9 +401,18 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
               {inputMode === 'file' ? (
                 <div className="space-y-3">
                   {/* Drop Zone */}
-                  <div onClick={() => fileRef.current?.click()} className={`border-2 border-dashed rounded-3xl p-6 flex flex-col items-center justify-center gap-2 transition-all cursor-pointer group ${uploadFiles.length > 0 ? 'border-indigo-400 bg-indigo-50/30' : 'border-slate-300 hover:border-indigo-400 hover:bg-white bg-white/50'}`}>
+                  <div 
+                    onClick={() => fileRef.current?.click()} 
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    className={`border-2 border-dashed rounded-3xl p-6 flex flex-col items-center justify-center gap-2 transition-all cursor-pointer group ${
+                      isDragging ? 'border-indigo-600 bg-indigo-50 ring-4 ring-indigo-50/50' : 
+                      uploadFiles.length > 0 ? 'border-indigo-400 bg-indigo-50/30' : 'border-slate-300 hover:border-indigo-400 hover:bg-white bg-white/50'
+                    }`}
+                  >
                     <input ref={fileRef} type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple onChange={e => { if (e.target.files && e.target.files.length > 0) handleFilesSelect(e.target.files) }} />
-                    <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-300 group-hover:text-indigo-600 group-hover:bg-indigo-50 transition-all">{uploadFiles.length > 0 ? <Files size={22} /> : <Upload size={22} />}</div>
+                    <div className={`w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center transition-all ${isDragging ? 'scale-110 text-indigo-600 bg-indigo-100' : 'text-slate-300 group-hover:text-indigo-600 group-hover:bg-indigo-50'}`}>{uploadFiles.length > 0 ? <Files size={22} /> : <Upload size={22} />}</div>
                     <p className="text-sm font-bold text-slate-600 group-hover:text-slate-700 text-center">{uploadFiles.length > 0 ? `เลือกไฟล์แล้ว ${uploadFiles.length} ไฟล์ (กดเพื่อเปลี่ยน)` : 'ลากไฟล์วางที่นี่ หรือคลิกเพื่อเลือก'}</p>
                     <p className="text-[10px] text-slate-400 font-bold">เลือกได้หลายไฟล์พร้อมกัน (Ctrl+Click)</p>
                   </div>
@@ -378,9 +451,14 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
                             <p className="text-xs font-bold text-slate-700 truncate">{file.name}</p>
                             <p className="text-[9px] text-slate-400">{(file.size / 1024).toFixed(0)} KB</p>
                           </div>
-                          {!processing && (
-                            <button onClick={() => removeFile(i)} className="text-slate-300 hover:text-rose-500 p-1 flex-shrink-0"><X size={14} /></button>
-                          )}
+                          <div className="flex items-center gap-1 ml-auto">
+                            {fileStatuses[i] === 'error' && !processing && (
+                              <button onClick={(e) => { e.stopPropagation(); retryFile(i) }} className="text-indigo-600 hover:text-indigo-800 p-1 bg-white rounded-lg border border-slate-200 shadow-sm" title="ลองใหม่เฉพาะใบนี้"><RotateCcw size={14} /></button>
+                            )}
+                            {!processing && (
+                              <button onClick={(e) => { e.stopPropagation(); removeFile(i) }} className="text-slate-300 hover:text-rose-500 p-1 flex-shrink-0"><X size={14} /></button>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -458,12 +536,15 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
                   )}
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-xs font-black text-slate-600 uppercase tracking-widest">ผลลัพธ์ ({result.length} รายการ)</p>
-                    <div className="flex gap-2">
-                       <button onClick={() => exportCSV(result)} className="flex items-center gap-2 bg-slate-100 text-slate-600 font-bold text-xs px-4 py-2 rounded-xl hover:bg-slate-200"><Download size={14} /> CSV</button>
-                       {hasGSheet && (
-                         <button onClick={() => setTab('howto')} className="flex items-center gap-2 bg-emerald-600 text-white font-bold text-xs px-4 py-2 rounded-xl hover:bg-emerald-700 animate-fadeUp"><ExternalLink size={14} /> Sync Google Sheet</button>
-                       )}
-                    </div>
+                      <div className="flex gap-2">
+                        {fileStatuses.includes('error') && (
+                          <button onClick={retryAllFailed} disabled={processing} className="flex items-center gap-2 bg-amber-50 text-amber-700 border border-amber-200 font-bold text-xs px-4 py-2 rounded-xl hover:bg-amber-100"><RotateCcw size={14} /> Retry ทั้งหมด ({fileStatuses.filter(s => s === 'error').length})</button>
+                        )}
+                        <button onClick={() => exportCSV(result)} className="flex items-center gap-2 bg-slate-100 text-slate-600 font-bold text-xs px-4 py-2 rounded-xl hover:bg-slate-200"><Download size={14} /> CSV</button>
+                        {hasGSheet && (
+                          <button onClick={() => setTab('howto')} className="flex items-center gap-2 bg-emerald-600 text-white font-bold text-xs px-4 py-2 rounded-xl hover:bg-emerald-700 animate-fadeUp"><ExternalLink size={14} /> Sync Google Sheet</button>
+                        )}
+                      </div>
                   </div>
                   <div className="overflow-x-auto rounded-xl border border-slate-200">
                     <table className="w-full text-xs">
