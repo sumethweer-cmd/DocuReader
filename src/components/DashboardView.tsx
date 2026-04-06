@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Coins, Plus, FileText, Upload, Download, X, Loader2, Copy, ExternalLink, CheckCircle2, Trash2, ArrowUp, ArrowDown, HelpCircle, Table, Zap, AlertCircle, Files, Info } from 'lucide-react'
+import { Coins, Plus, FileText, Upload, Download, X, Loader2, Copy, ExternalLink, CheckCircle2, Trash2, ArrowUp, ArrowDown, HelpCircle, Table, Zap, AlertCircle, Files, Info, Pencil } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useToast } from './Toast'
 import type { View, UserProfile, ExtractionTemplate, TemplateColumn, Document } from '../types'
@@ -26,6 +26,9 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
   const [tplDesc, setTplDesc] = useState('')
   const [tplCols, setTplCols] = useState<TemplateColumn[]>([{ name: '', type: 'text' }])
   const [tplCustomPrompt, setTplCustomPrompt] = useState('')
+  const [tplWebhookUrl, setTplWebhookUrl] = useState('')
+  const [tplHeaderRow, setTplHeaderRow] = useState(1)
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
   // Input state
@@ -69,16 +72,41 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
     if (!tplName.trim()) { toast('error', 'กรุณาตั้งชื่อ Template'); return }
     const validCols = tplCols.filter(c => c.name.trim())
     if (validCols.length === 0) { toast('error', 'กรุณาเพิ่มคอลัมน์อย่างน้อย 1 อัน'); return }
-    if (templates.length >= maxTemplates) { toast('error', `แพ็กเกจของคุณสร้างได้สูงสุด ${maxTemplates} Template`); return }
+    if (!editingTemplateId && templates.length >= maxTemplates) { toast('error', `แพ็กเกจของคุณสร้างได้สูงสุด ${maxTemplates} Template`); return }
     setSaving(true)
-    const { error } = await supabase.from('extraction_templates').insert({ user_id: userProfile!.id, name: tplName, description: tplDesc, custom_prompt: tplCustomPrompt, columns: validCols })
-    setSaving(false)
-    if (error) { toast('error', error.message); return }
-    toast('success', 'บันทึก Template สำเร็จ!')
-    setShowBuilder(false); setTplName(''); setTplDesc(''); setTplCustomPrompt(''); setTplCols([{ name: '', type: 'text' }]); fetchTemplates()
+    if (editingTemplateId) {
+      // Update existing
+      const { error } = await supabase.from('extraction_templates').update({ name: tplName, description: tplDesc, custom_prompt: tplCustomPrompt, columns: validCols, webhook_url: tplWebhookUrl, header_row_index: tplHeaderRow }).eq('id', editingTemplateId)
+      setSaving(false)
+      if (error) { toast('error', error.message); return }
+      toast('success', 'อัปเดต Template สำเร็จ!')
+    } else {
+      // Create new
+      const { error } = await supabase.from('extraction_templates').insert({ user_id: userProfile!.id, name: tplName, description: tplDesc, custom_prompt: tplCustomPrompt, columns: validCols, webhook_url: tplWebhookUrl, header_row_index: tplHeaderRow })
+      setSaving(false)
+      if (error) { toast('error', error.message); return }
+      toast('success', 'บันทึก Template สำเร็จ!')
+    }
+    resetBuilder(); fetchTemplates()
   }
 
-  const usePreset = (preset: typeof PRESETS[0]) => { setTplName(preset.name); setTplDesc(preset.desc); setTplCols(preset.columns.slice(0, maxCols)); setTplCustomPrompt(''); setShowBuilder(true); setTab('templates') }
+  const resetBuilder = () => {
+    setShowBuilder(false); setEditingTemplateId(null); setTplName(''); setTplDesc(''); setTplCustomPrompt(''); setTplWebhookUrl(''); setTplHeaderRow(1); setTplCols([{ name: '', type: 'text' }])
+  }
+
+  const editTemplate = (t: ExtractionTemplate) => {
+    setEditingTemplateId(t.id)
+    setTplName(t.name)
+    setTplDesc(t.description || '')
+    setTplCustomPrompt(t.custom_prompt || '')
+    setTplWebhookUrl(t.webhook_url || '')
+    setTplHeaderRow(t.header_row_index || 1)
+    setTplCols((t.columns as TemplateColumn[]).length > 0 ? (t.columns as TemplateColumn[]) : [{ name: '', type: 'text' }])
+    setShowBuilder(true)
+    setTab('templates')
+  }
+
+  const usePreset = (preset: typeof PRESETS[0]) => { setEditingTemplateId(null); setTplName(preset.name); setTplDesc(preset.desc); setTplCols(preset.columns.slice(0, maxCols)); setTplCustomPrompt(''); setTplWebhookUrl(''); setTplHeaderRow(1); setShowBuilder(true); setTab('templates') }
   const deleteTemplate = async (id: string) => { const { error } = await supabase.from('extraction_templates').delete().eq('id', id); if (error) toast('error', error.message); else { toast('success', 'ลบ Template แล้ว'); fetchTemplates() } }
 
   // === AI Processing (supports single file, text, or multi-file queue) ===
@@ -252,12 +280,12 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
           <div>
             <div className="flex items-center gap-2 mb-1">
               <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 mr-2">ระบบออนไลน์</span>
-              <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
-                userProfile?.tier === 'pro' ? 'bg-amber-100 text-amber-600' :
-                userProfile?.tier === 'starter plus' ? 'bg-emerald-100 text-emerald-600' :
-                userProfile?.tier === 'starter' ? 'bg-indigo-100 text-indigo-600' :
-                'bg-slate-100 text-slate-600'
+              <span className="text-xs font-black uppercase tracking-widest text-slate-600 mr-2">ระบบออนไลน์</span>
+              <span className={`text-xs font-black uppercase px-3 py-1 rounded-full shadow-sm ${
+                userProfile?.tier === 'pro' ? 'bg-amber-100 text-amber-700 border border-amber-200' :
+                userProfile?.tier === 'starter plus' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
+                userProfile?.tier === 'starter' ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' :
+                'bg-slate-100 text-slate-600 border border-slate-200'
               }`}>
                 {userProfile?.tier || 'Free Plan'}
               </span>
@@ -468,12 +496,19 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
                 ) : (
                   <div className="grid gap-4">{templates.map(t => (
                     <div key={t.id} className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between hover:shadow-sm transition-all">
-                      <div>
+                      <div className="flex-1 min-w-0">
                         <h4 className="font-bold text-slate-900">{t.name}</h4>
                         {t.description && <p className="text-xs text-slate-500 mt-0.5 font-bold">{t.description}</p>}
+                        <div className="flex items-center gap-2 mt-1">
+                          {t.webhook_url && <span className="text-[8px] bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded-full font-black uppercase tracking-widest">Active Webhook</span>}
+                          {t.custom_prompt && <p className="text-[10px] text-amber-600 font-bold truncate">💡 Prompt: {t.custom_prompt}</p>}
+                        </div>
                         <div className="flex gap-1 mt-2 flex-wrap">{(t.columns as TemplateColumn[]).map((c, ci) => <span key={ci} className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-bold">{c.name}</span>)}</div>
                       </div>
-                      <button onClick={() => deleteTemplate(t.id)} className="text-slate-300 hover:text-rose-500 transition-colors p-2"><Trash2 size={16} /></button>
+                      <div className="flex items-center gap-1 ml-3 flex-shrink-0">
+                        <button onClick={() => editTemplate(t)} className="text-slate-300 hover:text-indigo-600 transition-colors p-2" title="แก้ไข"><Pencil size={16} /></button>
+                        <button onClick={() => deleteTemplate(t.id)} className="text-slate-300 hover:text-rose-500 transition-colors p-2" title="ลบ"><Trash2 size={16} /></button>
+                      </div>
                     </div>
                   ))}</div>
                 )}
@@ -481,28 +516,88 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
             ) : (
               <div className="bg-white border border-slate-200 rounded-3xl p-8 animate-fadeUp">
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-headline font-black text-slate-900">สร้าง Template ใหม่</h3>
-                  <button onClick={() => setShowBuilder(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+                  <div>
+                    <h3 className="text-lg font-headline font-black text-slate-900">{editingTemplateId ? '✏️ แก้ไข Template' : '➕ สร้าง Template ใหม่'}</h3>
+                    {editingTemplateId && <p className="text-[10px] text-amber-600 font-bold mt-0.5">กำลังแก้ไข Template ที่มีอยู่</p>}
+                  </div>
+                  <button onClick={resetBuilder} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
                 </div>
                 <div className="space-y-4 mb-6">
-                  <div><label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">ชื่อ Template</label><input value={tplName} onChange={e => setTplName(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold" placeholder="เช่น ใบเสร็จค่าไฟฟ้า" /></div>
-                  <div><label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">คำอธิบาย (ไม่บังคับ)</label><input value={tplDesc} onChange={e => setTplDesc(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm" placeholder="อธิบายว่า Template นี้ใช้กับเอกสารประเภทไหน" /></div>
+                  <div><label className="block text-xs font-bold uppercase tracking-widest text-slate-700 mb-1">ชื่อ Template</label><input value={tplName} onChange={e => setTplName(e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-base font-black text-slate-900 placeholder:text-slate-400" placeholder="เช่น ใบเสร็จค่าไฟฟ้า" /></div>
+                  <div><label className="block text-xs font-bold uppercase tracking-widest text-slate-700 mb-1">คำอธิบาย (ไม่บังคับ)</label><input value={tplDesc} onChange={e => setTplDesc(e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-base font-bold text-slate-900 placeholder:text-slate-400" placeholder="อธิบายว่า Template นี้ใช้กับเอกสารประเภทไหน" /></div>
+                  {hasGSheet && (
+                    <>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold uppercase tracking-widest text-slate-700 mb-1">Webhook URL (Sync to Sheets)</label>
+                          <input value={tplWebhookUrl} onChange={e => setTplWebhookUrl(e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-base font-black text-indigo-700 placeholder:text-indigo-300" placeholder="https://..." />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold uppercase tracking-widest text-slate-700 mb-1">แถวที่เริ่มหัวตาราง (A1=1)</label>
+                          <input type="number" min="1" value={tplHeaderRow} onChange={e => setTplHeaderRow(parseInt(e.target.value)||1)} className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-base font-black text-slate-900" />
+                        </div>
+                      </div>
+                      {tplWebhookUrl && (
+                        <div className="p-4 bg-slate-900 rounded-2xl border border-slate-800 animate-fadeIn">
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-[10px] font-black uppercase text-indigo-400 tracking-widest">⚙️ Google Apps Script (Ready to Copy)</span>
+                            <button onClick={() => {
+                              const code = `// DocuReader Auto-Sync Script
+function doPost(e) {
+  const res = JSON.parse(e.postData.contents);
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const headerRow = ${tplHeaderRow};
+  const data = res.data[0] || {};
+  
+  const lastCol = sheet.getLastColumn();
+  let headers = [];
+  if (lastCol > 0) {
+    headers = sheet.getRange(headerRow, 1, 1, lastCol).getValues()[0].map(String);
+  }
+  
+  Object.keys(data).forEach(k => {
+    if (!headers.includes(k)) {
+      headers.push(k);
+    }
+  });
+  
+  if (headers.length > 0) {
+    sheet.getRange(headerRow, 1, 1, headers.length).setValues([headers]);
+    const rowData = headers.map(h => data[h] === undefined ? "" : data[h]);
+    sheet.appendRow(rowData);
+  }
+  
+  return ContentService.createTextOutput("Success");
+}`;
+                              navigator.clipboard.writeText(code); toast('success', 'ก๊อปปี้โค้ดแล้ว!');
+                            }} className="text-[10px] bg-slate-800 text-white px-3 py-1.5 rounded-lg hover:bg-slate-700 font-bold transition-all flex items-center gap-1"><Copy size={10} /> คัดลอกโค้ดไปวางใน Google Sheet</button>
+                          </div>
+                          <p className="text-[10px] text-slate-400 leading-relaxed font-medium">
+                            1. ใน Google Sheet ไปที่ <span className="text-white">Extensions &gt; Apps Script</span><br/>
+                            2. ลบโค้ดเดิม แล้วแปะโค้ดนี้ลงไป<br/>
+                            3. กด <span className="text-white">Deploy &gt; New Deployment &gt; Web App</span> (เข้าถึงได้โดย: Anyone)<br/>
+                            4. นำ URL ที่ได้มาวางในช่องข้างบนนี้
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  )}
                   <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">คำสั่งพิเศษ หรือบริบทเพิ่มเติมให้ AI (Optional)</label>
-                    <textarea value={tplCustomPrompt} onChange={e => setTplCustomPrompt(e.target.value)} rows={3} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm" placeholder="ตัวอย่าง: รหัสสาขาต้องขึ้นต้นด้วย INC เสมอ, แปลงวันที่ให้เป็นรูปแบบ YYYY-MM-DD" />
+                    <label className="block text-xs font-bold uppercase tracking-widest text-slate-700 mb-1">คำสั่งพิเศษ หรือบริบทเพิ่มเติมให้ AI (Optional)</label>
+                    <textarea value={tplCustomPrompt} onChange={e => setTplCustomPrompt(e.target.value)} rows={2} className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-base font-bold text-slate-900 placeholder:text-slate-400" placeholder="ตัวอย่าง: รหัสสาขาต้องขึ้นต้นด้วย INC เสมอ, แปลงวันที่ให้เป็นรูปแบบ YYYY-MM-DD" />
                   </div>
                 </div>
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-3">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">คอลัมน์ที่ต้องการ ({tplCols.length}/{maxCols})</label>
-                    <button onClick={addCol} disabled={tplCols.length >= maxCols} className="text-xs font-bold text-indigo-600 hover:text-indigo-800 disabled:text-slate-300 flex items-center gap-1"><Plus size={12} /> เพิ่มคอลัมน์</button>
+                    <label className="text-xs font-bold uppercase tracking-widest text-slate-700">คอลัมน์ที่ต้องการ ({tplCols.length}/{maxCols})</label>
+                    <button onClick={addCol} disabled={tplCols.length >= maxCols} className="text-sm font-bold text-indigo-700 hover:text-indigo-900 disabled:text-slate-400 flex items-center gap-1"><Plus size={14} /> เพิ่มคอลัมน์</button>
                   </div>
                   <div className="space-y-2">
                     {tplCols.map((col, i) => (
-                      <div key={i} className="flex items-center gap-2 bg-slate-50 rounded-xl p-2">
-                        <span className="text-[10px] font-black text-slate-300 w-6 text-center">{i + 1}</span>
-                        <input value={col.name} onChange={e => updateCol(i, 'name', e.target.value)} className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold" placeholder="ชื่อคอลัมน์" />
-                        <select value={col.type} onChange={e => updateCol(i, 'type', e.target.value)} className="bg-white border border-slate-200 rounded-lg px-2 py-2 text-xs font-bold w-24">
+                      <div key={i} className="flex items-center gap-2 bg-slate-50 rounded-xl p-2 border border-slate-200">
+                        <span className="text-xs font-black text-slate-400 w-6 text-center">{i + 1}</span>
+                        <input value={col.name} onChange={e => updateCol(i, 'name', e.target.value)} className="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-2 text-base font-black text-slate-900 placeholder:text-slate-300" placeholder="ชื่อคอลัมน์" />
+                        <select value={col.type} onChange={e => updateCol(i, 'type', e.target.value)} className="bg-white border border-slate-300 rounded-lg px-2 py-2 text-sm font-bold text-slate-900 w-28">
                           <option value="text">ข้อความ</option><option value="number">ตัวเลข</option><option value="date">วันที่</option><option value="currency">จำนวนเงิน</option>
                         </select>
                         <div className="flex gap-0.5">
@@ -515,7 +610,7 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
                   </div>
                 </div>
                 <button onClick={saveTemplate} disabled={saving} className="w-full bg-indigo-600 text-white font-bold py-3.5 rounded-xl hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50">
-                  {saving ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle2 size={16} />} บันทึก Template
+                  {saving ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle2 size={16} />} {editingTemplateId ? 'อัปเดต Template' : 'บันทึก Template'}
                 </button>
               </div>
             )}
@@ -556,10 +651,7 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
 /* ===== How-to Guide Component ===== */
 function HowToGuide() {
   const [guideTab, setGuideTab] = useState<'csv' | 'sheets'>('csv')
-  const [sheetUrl, setSheetUrl] = useState('')
-  const { toast } = useToast()
-  const exampleCsvUrl = 'https://your-app-url.vercel.app/api/export/abc123'
-  const copyText = (text: string) => { navigator.clipboard.writeText(text); toast('success', 'คัดลอกแล้ว!') }
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null)
 
   return (
     <div className="space-y-6 animate-fadeUp">
@@ -574,59 +666,93 @@ function HowToGuide() {
           <p className="text-sm text-slate-700 mb-6 font-bold">ดาวน์โหลดข้อมูลที่ AI สกัดได้เป็นไฟล์ CSV เพื่อเปิดใน Excel หรือโปรแกรมตารางอื่นๆ</p>
           <div className="space-y-6">
             {[
-              { step: 1, title: 'อัปโหลดเอกสาร', desc: 'ไปที่แท็บ "อัปโหลด" แล้วลากไฟล์ PDF หรือรูปภาพวางลงในพื้นที่อัปโหลด' },
-              { step: 2, title: 'เลือก Template และใส่คำสั่งพิเศษ (Prompt)', desc: 'คุณสามารถสร้าง Template ใหม่เพื่อกำหนดชื่อคอลัมน์ และสามารถใส่ "คำสั่งพิเศษให้ AI (Prompt)" เพื่อสอน AI ให้หารูปแบบเฉพาะที่คุณต้องการได้ (เช่น รหัสต้องขึ้นต้นด้วย INC)' },
-              { step: 3, title: 'กด "เริ่มประมวลผล"', desc: 'ระบบ AI จะอ่านเอกสารและสกัดข้อมูลตามคอลัมน์ที่คุณกำหนด (ใช้เวลา 5-10 วินาที/หน้า)' },
-              { step: 4, title: 'ดาวน์โหลด CSV', desc: 'เมื่อเสร็จแล้ว กดปุ่ม "Download CSV" เพื่อดาวน์โหลดไฟล์ เปิดได้ทันทีใน Excel' },
+              { step: 1, title: 'อัปโหลดเอกสาร', desc: 'ไปที่แท็บ "อัปโหลด" แล้วลากไฟล์ PDF หรือรูปภาพวางลงในพื้นที่อัปโหลด', images: [] },
+              { step: 2, title: 'เลือก Template และใส่คำสั่งพิเศษ (Prompt)', desc: 'คุณสามารถสร้าง Template ใหม่เพื่อกำหนดชื่อคอลัมน์ และสามารถใส่ "คำสั่งพิเศษให้ AI (Prompt)" เพื่อสอน AI ให้หารูปแบบเฉพาะที่คุณต้องการได้ (เช่น รหัสต้องขึ้นต้นด้วย INC)', images: [] },
+              { step: 3, title: 'กด "เริ่มประมวลผล"', desc: 'ระบบ AI จะอ่านเอกสารและสกัดข้อมูลตามคอลัมน์ที่คุณกำหนด (ใช้เวลา 5-10 วินาที/หน้า)', images: [] },
+              { step: 4, title: 'ดาวน์โหลด CSV', desc: 'เมื่อเสร็จแล้ว กดปุ่ม "Download CSV" เพื่อดาวน์โหลดไฟล์ เปิดได้ทันทีใน Excel', images: [] },
             ].map(s => (
               <div key={s.step} className="flex gap-4">
                 <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-black text-sm flex-shrink-0">{s.step}</div>
-                <div><h4 className="font-bold text-slate-900 text-sm">{s.title}</h4><p className="text-xs text-slate-600 mt-0.5 font-bold">{s.desc}</p></div>
+                <div className="flex-1">
+                  <h4 className="font-bold text-slate-900 text-sm">{s.title}</h4>
+                  <p className="text-xs text-slate-600 mt-0.5 font-bold">{s.desc}</p>
+                  {s.images && s.images.length > 0 && (
+                    <div className="mt-3 flex gap-3 flex-wrap">
+                      {s.images.map((img, i) => (
+                        <img key={i} src={img} alt={`Step ${s.step}`} onClick={() => setLightboxImage(img)} className="h-24 w-auto rounded-lg border border-slate-200 cursor-zoom-in hover:opacity-80 transition-opacity shadow-sm" />
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
           </div>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-fadeUp">
           <div className="bg-white border border-slate-200 rounded-3xl p-8">
-            <h3 className="text-lg font-headline font-black text-slate-900 mb-2">📊 วิธีเชื่อมต่อ Google Sheets</h3>
-            <p className="text-sm text-slate-700 mb-6 font-bold">ส่งข้อมูลที่ AI สกัดได้ตรงไปยัง Google Sheets ให้อัปเดตอัตโนมัติ</p>
+            <h3 className="text-lg font-headline font-black text-slate-900 mb-2">📊 วิธีเชื่อมต่อ Google Sheets (ผ่าน Webhook)</h3>
+            <p className="text-sm text-slate-700 mb-6 font-bold">ส่งข้อมูลที่ AI สกัดได้ให้ไปบันทึกต่อท้ายแถวใน Google Sheets โดยอัตโนมัติทันที</p>
             <div className="space-y-6">
               {[
-                { step: 1, title: 'เปิด Google Sheets', desc: 'ไปที่ sheets.google.com แล้วสร้าง Spreadsheet ใหม่', extra: <a href="https://sheets.google.com" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-indigo-600 font-bold hover:underline mt-1"><ExternalLink size={10} /> เปิด Google Sheets</a> },
-                { step: 2, title: 'คัดลอก URL ข้อมูลของคุณ', desc: 'กดปุ่มด้านล่างเพื่อคัดลอกลิงก์ข้อมูลของคุณ', extra: (
-                  <div className="mt-2 flex items-center gap-2">
-                    <code className="flex-1 bg-slate-100 px-3 py-2 rounded-lg text-xs text-slate-600 truncate">{exampleCsvUrl}</code>
-                    <button onClick={() => copyText(exampleCsvUrl)} className="bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 flex items-center gap-1"><Copy size={12} /> คัดลอก</button>
-                  </div>
-                )},
-                { step: 3, title: 'ใส่สูตร IMPORTDATA', desc: 'ในเซลล์ A1 ของ Google Sheets พิมพ์สูตรนี้:', extra: (
-                  <div className="mt-2">
-                    <div className="flex items-center gap-2">
-                      <code className="flex-1 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg text-xs text-amber-800 font-mono">=IMPORTDATA("{exampleCsvUrl}")</code>
-                      <button onClick={() => copyText(`=IMPORTDATA("${exampleCsvUrl}")`)} className="bg-amber-500 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-amber-600 flex items-center gap-1"><Copy size={12} /></button>
-                    </div>
-                  </div>
-                )},
-                { step: 4, title: 'เสร็จเรียบร้อย!', desc: 'ทุกครั้งที่คุณประมวลผลเอกสารใหม่ ข้อมูลใน Google Sheets จะอัปเดตโดยอัตโนมัติ' },
+                { step: 1, title: 'สร้างและตั้งค่า Template', desc: 'ไปที่แท็บ "Templates" และกด "สร้างใหม่" หรือ "แก้ไข" Template เดิมที่คุณตั้งคอลัมน์ไว้แล้ว', images: ['/guide/step1-1.jpg'] },
+                { step: 2, title: 'คัดลอกโค้ด Apps Script', desc: 'ในหน้าตั้งค่า Template เมื่อคุณกรอก Webhook URL (หรือใส่ค่ามั่วๆ ไปก่อน) ระบบจะขึ้นหน้าต่างรหัส Google Apps Script สีดำ ให้กดคลิกปุ่ม "คัดลอกโค้ดไปวางใน Google Sheet"', images: ['/guide/step2-1.jpg'] },
+                { step: 3, title: 'นำไปติดตั้งใน Google Sheet', desc: 'เปิด Google Sheet ที่ต้องการใช้งาน คลิกเมนู Extensions > Apps Script คุณจะเห็นหน้าจอที่มีไฟล์ Code.gs และมีคำสั่ง `function myFunction() { }` อยู่ ให้ลบโค้ดเดิมทิ้งทั้งหมด แล้ววางโค้ดที่คัดลอกมาลงไปแทน', images: ['/guide/step3-1.jpg', '/guide/step3-2.jpg'] },
+                { step: 4, title: 'นำ Webhook URL มาใส่ระบบ (ไม่ต้องกดปุ่ม Run)', desc: 'สำคัญ: ไม่ต้องกดปุ่ม Run ใดๆ ทั้งสิ้น ให้คลิกปุ่มสีน้ำเงิน Deploy (ตั้งค่าการใช้งาน) ที่มุมขวาบน > New Deployment (การทำให้ใช้งานได้รายการใหม่) ซ้ายบนเลือกประเภทเป็น "Web App" (เว็บแอป) ตั้งค่า Who has access (ผู้มีสิทธิ์เข้าถึง) เป็น "Anyone" (ทุกคน) แล้วกด Deploy\n\n*หมายเหตุ: หากมีหน้าต่างเตือน "Google hasn\'t verified this app" (Google ยังไม่ได้ยืนยันแอปนี้) เป็นเรื่องปกติครับ ให้คลิกคำว่า "Advanced" (ขั้นสูง) ด้านล่างซ้าย แล้วคลิก "Go to Untitled project (unsafe)" เพื่อกดยอมรับสิทธิ์\n\nจากนั้นคัดลอก Web App URL กลับมาใส่ในช่อง Webhook URL ใน DocuReader แล้วกด "อัปเดต Template" เป็นอันเสร็จสิ้น!', images: ['/guide/step4-1.jpg', '/guide/step4-2.jpg', '/guide/step4-3.jpg', '/guide/step4-4.jpg', '/guide/step4-5.jpg', '/guide/step4-6.jpg'] },
               ].map(s => (
                 <div key={s.step} className="flex gap-4">
                   <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-black text-sm flex-shrink-0">{s.step}</div>
-                  <div className="flex-1"><h4 className="font-bold text-slate-900 text-sm">{s.title}</h4><p className="text-xs text-slate-600 mt-0.5 font-bold">{s.desc}</p>{s.extra}</div>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-slate-900 text-sm">{s.title}</h4>
+                    <p className="whitespace-pre-line text-xs text-slate-600 mt-1 font-bold leading-relaxed">{s.desc}</p>
+                    {s.images && s.images.length > 0 && (
+                      <div className="mt-3 flex gap-3 flex-wrap">
+                         {s.images.map((img, i) => (
+                           <div key={i} className="relative group cursor-zoom-in" onClick={() => setLightboxImage(img)}>
+                             <img src={img} alt={`Step ${s.step}`} className="h-32 w-auto bg-slate-100 rounded-lg border border-slate-200 transition-all shadow-sm group-hover:shadow-md" />
+                             <div className="absolute inset-0 bg-black/5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                               <div className="bg-white/80 p-1.5 rounded-full"><Plus className="text-slate-700" size={16} /></div>
+                             </div>
+                           </div>
+                         ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
           </div>
-          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6">
-            <h4 className="font-bold text-emerald-900 text-sm mb-2">🔗 ผูก Google Sheet URL ของคุณ (ไม่บังคับ)</h4>
-            <p className="text-xs text-emerald-700 mb-3">วาง URL ของ Google Sheet ที่คุณต้องการให้ระบบส่งข้อมูลไปอัปเดต</p>
-            <div className="flex gap-2">
-              <input value={sheetUrl} onChange={e => setSheetUrl(e.target.value)} className="flex-1 bg-white border border-emerald-300 rounded-xl px-4 py-2.5 text-sm" placeholder="https://docs.google.com/spreadsheets/d/..." />
-              <button onClick={() => toast('success', 'บันทึก Google Sheet URL แล้ว')} className="bg-emerald-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-emerald-700 transition-all">บันทึก</button>
+          <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-6">
+            <h4 className="font-bold text-indigo-900 text-sm mb-3">✨ ตัวอย่างผลลัพธ์ใน Google Sheets</h4>
+            <div className="relative group cursor-zoom-in max-w-md" onClick={() => setLightboxImage('/guide/example.jpg')}>
+              <img src="/guide/example.jpg" alt="Example Result" className="w-full h-auto bg-slate-100 rounded-lg border border-slate-200 transition-all shadow-sm group-hover:shadow-md" />
+              <div className="absolute inset-0 bg-black/5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <div className="bg-white/80 p-2 rounded-full shadow-lg text-slate-700 font-bold text-xs flex items-center gap-1"><Plus size={14} /> คลิกเพื่อขยายดูตัวอย่าง</div>
+              </div>
             </div>
+            <p className="text-[10px] text-indigo-700 font-bold mt-4 leading-relaxed">
+              เมื่อส่งข้อมูลสำเร็จ ข้อมูลจะไปปรากฏที่แถวถัดไปของ Google Sheets ของคุณทันที (โดยอ้างอิงจากหัวตารางที่คุณตั้งไว้ใน Template)
+            </p>
           </div>
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6">
+            <h4 className="font-bold text-slate-700 text-sm mb-2">ℹ️ ข้อมูลจะถูกอัปเดตเมื่อไหร่?</h4>
+            <p className="text-[10px] text-slate-500 font-bold leading-relaxed">
+              เมื่อตั้งค่า Webhook ใน Template สมบูรณ์แล้ว ทุกครั้งที่คุณอัปโหลดและประมวลผลข้อมูลในหน้า "อัปโหลด" ด้วย Template นั้นๆ ระบบ DocuReader จะตี Webhook ไปยังหน้า Google Sheet ของคุณ ให้อัปเดตข้อมูลแบบ Real-time โดยอัตโนมัติ ไม่ต้องกด Export เอง
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Lightbox Modal */}
+      {lightboxImage && (
+        <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4 animate-fadeIn" onClick={() => setLightboxImage(null)}>
+          <button className="absolute top-6 right-6 text-white/70 hover:text-white bg-white/10 hover:bg-white/20 p-2 rounded-full transition-colors" onClick={() => setLightboxImage(null)}>
+            <X size={24} />
+          </button>
+          <img src={lightboxImage} className="max-w-full max-h-[90vh] object-contain rounded-xl shadow-2xl ring-1 ring-white/20" alt="Zoomed guide" onClick={e => e.stopPropagation()} />
         </div>
       )}
     </div>
   )
 }
+

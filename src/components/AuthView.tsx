@@ -28,7 +28,7 @@ export default function AuthView({ authMode, setAuthMode, handleAuth, email, set
           {authMode === 'login' ? 'ยินดีต้อนรับ' : 'เริ่มต้นใช้งานฟรี'}
         </h2>
         <p className="text-slate-500 mb-8 text-sm">
-          {authMode === 'login' ? 'กรุณาใส่ข้อมูลเพื่อเข้าจัดการเอกสาร' : 'สมัครวันนี้ รับฟรี 5 หน้าเอกสารทันที'}
+          {authMode === 'login' ? 'กรุณาใส่ข้อมูลเพื่อเข้าจัดการเอกสาร' : 'สมัครวันนี้ รับฟรี 20 หน้าเอกสารทันที'}
         </p>
 
         {message.text && (

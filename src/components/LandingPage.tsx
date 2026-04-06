@@ -71,17 +71,31 @@ export default function LandingPage({ pricingPlans, useCases, setView, userProfi
           </h1>
 
           <p className="text-lg md:text-xl text-slate-500 max-w-2xl mx-auto mb-10 leading-relaxed font-body">
-            แปลงใบเสร็จ, ใบแจ้งหนี้, สัญญา หรือเอกสารทุกประเภทให้เป็นตาราง CSV หรือส่งตรงไป Google Sheets — <span className="text-slate-800 font-semibold">เริ่มต้นฟรี 5 หน้า</span>
+            แปลงใบเสร็จ, ใบแจ้งหนี้, สัญญา หรือเอกสารทุกประเภทให้เป็นตาราง CSV หรือส่งตรงไป Google Sheets — <span className="text-slate-800 font-semibold">เริ่มต้นฟรี 20 หน้า</span>
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
             <button onClick={() => setView('auth')} className="w-full sm:w-auto bg-indigo-600 text-white font-bold px-10 py-4 rounded-2xl shadow-xl shadow-indigo-200 hover:bg-indigo-700 active:scale-95 transition-all text-sm flex items-center justify-center gap-2">
-              เริ่มใช้งานฟรี (5 หน้า) <ArrowRight size={16} />
+              เริ่มใช้งานฟรี (20 หน้า) <ArrowRight size={16} />
             </button>
-            <button className="flex items-center gap-3 text-slate-600 font-bold text-sm hover:text-indigo-600 transition-colors group px-4">
+            <button onClick={() => document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' })} className="flex items-center gap-3 text-slate-600 font-bold text-sm hover:text-indigo-600 transition-colors group px-4">
               <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-indigo-50 transition-all border border-slate-200"><PlayCircle size={20} /></div>
-              ดูวิธีใช้งาน
+              ดูวิดีโอแนะนำ
             </button>
+          </div>
+
+          {/* ===== VIDEO DEMO ===== */}
+          <div id="demo" className="relative group max-w-4xl mx-auto rounded-3xl overflow-hidden shadow-2xl border-4 border-white animate-fadeUp">
+            <div className="aspect-video bg-slate-900 flex items-center justify-center cursor-pointer relative overflow-hidden">
+               <img src="https://images.unsplash.com/photo-1611224923853-80b023f02d71?auto=format&fit=crop&q=80&w=1200" className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:scale-105 transition-transform duration-700" alt="Demo Video Placeholder" />
+               <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent" />
+               <div className="relative z-10 flex flex-col items-center gap-4 group-hover:scale-110 transition-transform">
+                  <div className="w-20 h-20 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-2xl shadow-white/10 group-hover:bg-white transition-all">
+                    <PlayCircle size={48} className="text-white group-hover:text-indigo-600 transition-colors" />
+                  </div>
+                  <span className="text-white font-black text-sm uppercase tracking-widest bg-indigo-600/80 px-4 py-1 rounded-full backdrop-blur-sm">Watch 1-Min Demo</span>
+               </div>
+            </div>
           </div>
         </div>
       </section>
@@ -208,6 +222,17 @@ export default function LandingPage({ pricingPlans, useCases, setView, userProfi
               )
             })}
           </div>
+          <div className="flex flex-col items-center justify-center gap-6 mt-12 py-8 border-t border-slate-100 animate-fadeIn">
+             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Secure Payments via Stripe</p>
+             <div className="flex items-center gap-8 grayscale opacity-50 contrast-125">
+               <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" className="h-4" alt="Visa" />
+               <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" className="h-6" alt="Mastercard" />
+               <img src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg" className="h-6" alt="Stripe" />
+               <div className="flex items-center gap-1.5 font-black text-slate-900 italic">
+                 <div className="w-5 h-5 bg-indigo-600 text-white rounded-sm flex items-center justify-center not-italic text-[8px]">QR</div> PROMPTPAY
+               </div>
+             </div>
+          </div>
 
           {/* Custom Plan */}
           {customPlan && (
@@ -221,6 +246,33 @@ export default function LandingPage({ pricingPlans, useCases, setView, userProfi
               </a>
             </div>
           )}
+        </div>
+      </section>
+
+      {/* ===== FAQ ===== */}
+      <section id="faq" className="py-24 px-6 bg-slate-50/50 border-t border-slate-100">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-16">
+             <p className="text-indigo-600 font-black uppercase tracking-[0.2em] text-[10px] mb-3">SUPPORT</p>
+             <h2 className="text-3xl md:text-5xl font-headline font-black tracking-tight text-slate-900 italic">FAQ <span className="not-italic">คำถามที่พบบ่อย</span></h2>
+          </div>
+          <div className="space-y-4">
+            {[
+              { q: 'ข้อมูลส่วนตัวในเอกสารจะปลอดภัยไหม?', a: 'ปลอดภัย 100% ครับ เราใช้ระบบเข้ารหัสข้อมูลระดับเดียวกับธนาคาร และไม่มีการนำข้อมูลในเอกสารของลูกค้าไปเทรนโมเดล AI ต่อสาธารณะแน่นอน' },
+              { q: 'รองรับเอกสารภาษาไทยไหม?', a: 'รองรับดีมากครับ! AI ของเราถูกเทรนให้เข้าใจโครงสร้างเอกสารภาษาไทย ทั้งแบบตัวพิมพ์และลายมือ (ถ้าอ่านออก)' },
+              { q: 'ต่อเข้า Google Sheets ยากไหม?', a: 'ไม่ยากครับ! เรามีสคริปต์สั้นๆ ให้ก๊อปปี้ไปแปะใน Google Sheets ของคุณครั้งเดียวจบ หลังจากนั้นข้อมูลจะเด้งเข้าชีทให้อัตโนมัติทุกครั้งที่อัปโหลดไฟล์' },
+              { q: 'เครดิตมีวันหมดอายุไหม?', a: 'เครดิตที่คุณซื้อจะสะสมอยู่ในบัญชีตลอดไป ไม่มีวันหมดอายุครับ ใช้เมื่อไหร่ก็ได้ตามต้องการ' },
+              { q: 'ถ้า AI อ่านผิด ทำอย่างไร?', a: 'ระบบเปิดให้คุณสามารถตรวจสอบและแก้ไขข้อมูลในตาราง Dashboard ได้เสมอก่อนที่จะดาวน์โหลด หรือเลือกแก้ไข Template เพื่อสอน AI ให้แม่นยำขึ้นได้ครับ' }
+            ].map((item, i) => (
+              <div key={i} className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm hover:border-indigo-200 transition-all group">
+                <h4 className="font-bold text-slate-900 flex items-center gap-2 mb-2 group-hover:text-indigo-600 transition-colors">
+                   <div className="w-6 h-6 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-black">?</div>
+                   {item.q}
+                </h4>
+                <p className="text-sm text-slate-500 leading-relaxed ml-8">{item.a}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
