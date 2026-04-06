@@ -1,10 +1,10 @@
-import { useState } from 'react'
-import { Shield, X, Zap, ChevronDown, Save, Upload, ImageIcon, Plus, Loader2, Users, Coins, Key, CreditCard, Pencil, CheckCircle2 } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Shield, X, Zap, ChevronDown, Save, Upload, ImageIcon, Plus, Loader2, Users, Coins, Key, CreditCard, Pencil, CheckCircle2, Search, RefreshCw } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useToast } from './Toast'
 import type { View, AIConfig, PricingPlan, AdminStats } from '../types'
 
-type AdminTab = 'stats' | 'models' | 'pricing' | 'content' | 'settings'
+type AdminTab = 'stats' | 'users' | 'models' | 'pricing' | 'content' | 'settings'
 
 type Props = {
   aiConfigs: AIConfig[]; apiKey: string; setApiKey: (v: string) => void
@@ -50,10 +50,42 @@ export default function AdminView(props: Props) {
   }
 
   const tabs: { key: AdminTab; label: string }[] = [
-    { key: 'stats', label: '📊 สถิติ' }, { key: 'models', label: '🤖 AI Model' },
-    { key: 'pricing', label: '💰 แพ็กเกจ' }, { key: 'content', label: '🎨 เนื้อหา' },
-    { key: 'settings', label: '⚙️ ตั้งค่า' },
+    { key: 'stats', label: '📊 สถิติ' }, { key: 'users', label: '👥 ผู้ใช้' },
+    { key: 'models', label: '🤖 AI Model' }, { key: 'pricing', label: '💰 แพ็กเกจ' },
+    { key: 'content', label: '🎨 เนื้อหา' }, { key: 'settings', label: '⚙️ ตั้งค่า' },
   ]
+
+  // User Management State
+  const [users, setUsers] = useState<any[]>([])
+  const [searchTerm, setSearchTerm] = useState('')
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false)
+  const [editingUserId, setEditingUserId] = useState<string | null>(null)
+  const [editUserForm, setEditUserForm] = useState({ credits: 0, tier: 'free' })
+
+  const fetchUsers = async () => {
+    setIsLoadingUsers(true)
+    const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false })
+    if (error) toast('error', error.message)
+    else setUsers(data || [])
+    setIsLoadingUsers(false)
+  }
+
+  const saveUserUpdate = async (uid: string) => {
+    const { error } = await supabase.from('profiles').update({
+      credits: editUserForm.credits,
+      tier: editUserForm.tier
+    }).eq('id', uid)
+    if (error) { toast('error', error.message); return }
+    toast('success', 'อัปเดตข้อมูลผู้ใช้สำเร็จ!')
+    setEditingUserId(null)
+    fetchUsers()
+  }
+
+  const filteredUsers = users.filter(u => u.email?.toLowerCase().includes(searchTerm.toLowerCase()) || u.full_name?.toLowerCase().includes(searchTerm.toLowerCase()))
+
+  useEffect(() => {
+    if (tab === 'users') fetchUsers()
+  }, [tab])
 
   const statCards = [
     { label: 'ผู้ใช้ทั้งหมด', value: stats.totalUsers, icon: <Users size={18} />, color: 'indigo' },
@@ -67,12 +99,17 @@ export default function AdminView(props: Props) {
     <div className="min-h-screen bg-slate-50 pt-24 pb-12 px-4 md:px-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center text-white shadow-lg"><Shield size={24} /></div>
-            <div><h1 className="text-2xl font-headline font-black text-slate-900">Admin Panel</h1><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">COMMAND CENTER</p></div>
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-900 rounded-2xl flex items-center justify-center text-white shadow-lg"><Shield size={20} /></div>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-headline font-black text-slate-900">Admin Panel</h1>
+              <p className="text-[8px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">COMMAND CENTER</p>
+            </div>
           </div>
-          <button onClick={() => setView('landing')} className="bg-white border border-slate-200 rounded-full px-4 py-2 text-slate-600 hover:bg-slate-50 font-bold text-xs flex items-center gap-2"><X size={14} /> ปิด</button>
+          <button onClick={() => setView('landing')} className="w-full sm:w-auto bg-white border border-slate-200 rounded-full px-4 py-2 text-slate-600 hover:bg-slate-50 font-bold text-xs flex items-center justify-center gap-2">
+            <X size={14} /> ปิดหน้าต่าง
+          </button>
         </div>
 
         {/* Tabs */}
@@ -94,6 +131,88 @@ export default function AdminView(props: Props) {
             ))}
           </div>
         )}
+
+        {/* Users Tab */}
+        {tab === 'users' && (
+          <div className="space-y-6 animate-fadeUp">
+            {/* Controls */}
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+              <div className="relative w-full md:w-96">
+                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-white border border-slate-200 rounded-2xl pl-12 pr-4 py-3 text-sm font-bold focus:border-indigo-500 shadow-sm transition-all" placeholder="ค้นหาด้วยอีเมล หรือ ชื่อ..." />
+              </div>
+              <button onClick={fetchUsers} className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-600 hover:bg-slate-50 font-bold text-xs flex items-center gap-2">
+                <RefreshCw size={14} className={isLoadingUsers ? 'animate-spin' : ''} /> รีเฟรชข้อมูล
+              </button>
+            </div>
+
+            {/* Table */}
+            <div className="relative group">
+              <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent pointer-events-none md:hidden opacity-50" />
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden overflow-x-auto scrollbar-hide">
+                <table className="w-full text-left min-w-[600px]">
+                <thead className="bg-slate-50 border-b border-slate-100">
+                  <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    <th className="px-6 py-4">ผู้ใช้ (อีเมล/ชื่อ)</th>
+                    <th className="px-6 py-4">เครดิตคงเหลือ</th>
+                    <th className="px-6 py-4">Subscription Tier</th>
+                    <th className="px-6 py-4 text-right">ดำเนินการ</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {filteredUsers.length > 0 ? filteredUsers.map(user => (
+                    <tr key={user.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-black text-slate-900">{user.email}</span>
+                          <span className="text-[10px] text-slate-400 font-bold">{user.full_name || 'ไม่ได้ระบุชื่อ'}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {editingUserId === user.id ? (
+                          <input type="number" value={editUserForm.credits} onChange={e => setEditUserForm({ ...editUserForm, credits: Number(e.target.value) })} className="w-24 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-bold" />
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-black text-indigo-600">{user.credits}</span>
+                            <span className="text-[10px] text-slate-400">หน้า</span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        {editingUserId === user.id ? (
+                          <select value={editUserForm.tier} onChange={e => setEditUserForm({ ...editUserForm, tier: e.target.value })} className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-bold">
+                            {pricingPlans.map(p => <option key={p.id} value={p.name.toLowerCase().replace(/\s+/g, '_')}>{p.name}</option>)}
+                            <option value="free">Free</option>
+                          </select>
+                        ) : (
+                          <span className={`text-[10px] uppercase font-black px-2.5 py-1 rounded-full ${user.tier === 'free' ? 'bg-slate-100 text-slate-400' : 'bg-indigo-50 text-indigo-600'}`}>
+                            {user.tier}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        {editingUserId === user.id ? (
+                          <div className="flex items-center justify-end gap-2">
+                            <button onClick={() => saveUserUpdate(user.id)} className="p-1.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-all"><CheckCircle2 size={16} /></button>
+                            <button onClick={() => setEditingUserId(null)} className="p-1.5 bg-slate-100 text-slate-400 rounded-lg hover:bg-slate-200 transition-all"><X size={16} /></button>
+                          </div>
+                        ) : (
+                          <button onClick={() => { setEditingUserId(user.id); setEditUserForm({ credits: user.credits, tier: user.tier }); }} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-xl transition-all">
+                            <Pencil size={16} />
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  )) : (
+                    <tr><td colSpan={4} className="px-6 py-20 text-center text-slate-400 text-sm font-bold">ไม่พบรายชื่อผู้ใช้</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <p className="text-[10px] text-slate-400 font-bold italic">* การปรับเปลี่ยนเครดิตจะมีผลทันทีที่ผู้ใช้เริ่มใช้งานครั้งต่อไป</p>
+        </div>
+      )}
 
         {/* Models Tab */}
         {tab === 'models' && (
@@ -124,7 +243,7 @@ export default function AdminView(props: Props) {
               return editPlan?.id === plan.id ? (
                 /* Edit Form */
                 <div key={plan.id} className="bg-white border-2 border-indigo-200 rounded-2xl p-6 animate-scaleIn">
-                  <div className="grid md:grid-cols-2 gap-4 mb-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                     <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">ชื่อแพ็กเกจ</label><input value={planForm.name} onChange={e => setPlanForm({ ...planForm, name: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold" /></div>
                     <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">ราคาขาย (THB)</label><input type="number" value={planForm.price_amount} onChange={e => setPlanForm({ ...planForm, price_amount: Number(e.target.value) })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold" /></div>
                     <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">ราคาเต็ม (แสดงขีดฆ่า)</label><input type="number" value={planForm.original_price} onChange={e => setPlanForm({ ...planForm, original_price: Number(e.target.value) })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold" /></div>

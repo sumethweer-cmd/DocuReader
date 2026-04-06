@@ -120,8 +120,55 @@ export default function Navbar({ view, setView, session, userProfile, setAuthMod
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 glass border-t border-slate-200 flex justify-around items-center px-4 py-2">
         <button onClick={() => setView('landing')} className={`flex flex-col items-center p-2 ${view === 'landing' ? 'text-indigo-600' : 'text-slate-400'}`}><Zap size={20} /><span className="text-[9px] mt-0.5 font-bold">หน้าแรก</span></button>
         <button onClick={() => setView('dashboard')} className={`flex flex-col items-center p-2 ${view === 'dashboard' ? 'text-indigo-600' : 'text-slate-400'}`}><FileText size={20} /><span className="text-[9px] mt-0.5 font-bold">เอกสาร</span></button>
-        <button onClick={() => session ? setView('dashboard') : setView('auth')} className="flex flex-col items-center p-2 text-slate-400"><UserCircle2 size={20} /><span className="text-[9px] mt-0.5 font-bold">บัญชี</span></button>
+        <button onClick={() => session ? setShowMenu(!showMenu) : setAuthMode('login')} className={`flex flex-col items-center p-2 ${showMenu ? 'text-indigo-600' : 'text-slate-400'}`}>
+          <UserCircle2 size={20} />
+          <span className="text-[9px] mt-0.5 font-bold">บัญชี</span>
+        </button>
       </nav>
+
+      {/* Mobile Menu Backdrop & Content (Standalone for mobile to ensure it's not relative to just the header button) */}
+      {showMenu && !!session && (
+        <div className="md:hidden fixed inset-0 z-[60] flex items-end justify-center px-4 pb-20 animate-fadeIn">
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowMenu(false)} />
+          <div className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl p-2 animate-slideUp">
+            <div className="px-5 py-4 border-b border-slate-50 mb-1 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">เครดิตของคุณ</p>
+                <div className="flex items-center gap-2">
+                  <Coins size={20} className="text-amber-500" />
+                  <span className="text-2xl font-black text-slate-900 font-headline">{userProfile?.credits?.toLocaleString() || 0}</span>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">แพ็กเกจ</p>
+                <span className={`text-xs font-black uppercase px-3 py-1 rounded-full ${
+                  userProfile?.tier === 'pro' ? 'bg-amber-100 text-amber-600' :
+                  userProfile?.tier === 'starter plus' ? 'bg-emerald-100 text-emerald-600' :
+                  userProfile?.tier === 'starter' ? 'bg-indigo-100 text-indigo-600' :
+                  'bg-slate-100 text-slate-600'
+                }`}>
+                  {userProfile?.tier || 'Free'}
+                </span>
+              </div>
+            </div>
+            
+            <div className="p-1 space-y-1">
+              {userProfile?.is_admin && (
+                <button onClick={() => { setView('admin'); setShowMenu(false) }} className="w-full flex items-center gap-4 px-4 py-4 text-rose-600 bg-rose-50/50 hover:bg-rose-50 rounded-2xl transition-colors font-black text-sm">
+                  <Shield size={20} /> แผงควบคุม Admin
+                </button>
+              )}
+              <button onClick={() => { setView('dashboard'); setShowMenu(false) }} className="w-full flex items-center gap-4 px-4 py-4 text-slate-700 hover:bg-slate-50 rounded-2xl transition-colors font-black text-sm">
+                <FileText size={20} /> ไปหน้าจัดการเอกสาร
+              </button>
+              <button onClick={onSignOut} className="w-full flex items-center gap-4 px-4 py-4 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-2xl transition-colors font-black text-sm">
+                <LogOut size={20} /> ออกจากระบบ
+              </button>
+            </div>
+            <button onClick={() => setShowMenu(false)} className="w-full mt-2 py-3 text-slate-400 font-bold text-xs uppercase tracking-widest">ปิดเมนู</button>
+          </div>
+        </div>
+      )}
     </header>
   )
 }

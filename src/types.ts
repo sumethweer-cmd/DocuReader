@@ -56,6 +56,7 @@ export type UserProfile = {
   max_columns: number
   max_templates: number
   has_googlesheets: boolean
+  created_at?: string
 }
 
 export type ExtractionTemplate = {
