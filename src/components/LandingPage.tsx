@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Zap, CheckCircle2, PlayCircle, Upload, Settings, Download, FileText, Shield, Brain, Globe, Mail, ArrowRight, Loader2 } from 'lucide-react'
+import { FileText, Zap, Shield, BarChart3, Clock, Rocket, PlayCircle, Upload, CheckCircle2, ChevronRight, Download, Eye, Layers, Brain, Globe, Mail, ArrowRight, Loader2 } from 'lucide-react';
 import type { PricingPlan, UseCase, View, UserProfile } from '../types'
 import Footer from './Footer'
 import { supabase } from '../lib/supabase'
@@ -100,28 +100,108 @@ export default function LandingPage({ pricingPlans, useCases, setView, userProfi
         </div>
       </section>
 
-      {/* ===== HOW IT WORKS ===== */}
-      <section className="py-24 px-6 bg-slate-50/70 border-y border-slate-100">
-        <div className="max-w-5xl mx-auto">
+      {/* ===== BEFORE & AFTER EXAMPLES ===== */}
+      <section className="py-24 px-6 bg-slate-50/50">
+        <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
-            <p className="text-indigo-600 font-black uppercase tracking-[0.2em] text-[10px] mb-3">HOW IT WORKS</p>
-            <h2 className="text-3xl md:text-5xl font-headline font-black tracking-tight text-slate-900">3 ขั้นตอนง่ายๆ</h2>
+            <p className="text-indigo-600 font-black uppercase tracking-[0.2em] text-[10px] mb-3">SEE IT IN ACTION</p>
+            <h2 className="text-3xl md:text-5xl font-headline font-black tracking-tight text-slate-900 mb-4">เปลี่ยนข้อมูลยุ่งเหยิงให้เป็นระเบียบ</h2>
+            <p className="text-slate-500 max-w-2xl mx-auto text-sm font-bold">AI ของเราไม่ได้แค่ "อ่าน" แต่ "เข้าใจ" บริบทของเอกสารและข้อความทุกรูปแบบ</p>
           </div>
-          <div className="grid md:grid-cols-3 gap-8 stagger">
-            {[
-              { icon: <Settings size={28} />, step: '01', title: 'ตั้งค่า Template', desc: 'กำหนดคอลัมน์ที่ต้องการ เช่น เลขใบเสร็จ, ชื่อบริษัท, ยอดเงิน ระบบจะจำ template ไว้ใช้ซ้ำ' },
-              { icon: <Upload size={28} />, step: '02', title: 'อัปโหลดเอกสาร', desc: 'ลากไฟล์ PDF หรือรูปภาพวางลงในระบบ รองรับทุกประเภทเอกสาร' },
-              { icon: <Download size={28} />, step: '03', title: 'ดาวน์โหลดผลลัพธ์', desc: 'Export เป็น CSV หรือเชื่อมต่อ Google Sheets ให้อัปเดตอัตโนมัติ' },
-            ].map((item) => (
-              <div key={item.step} className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all animate-fadeUp group">
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all">{item.icon}</div>
-                  <span className="text-5xl font-headline font-black text-slate-300 group-hover:text-indigo-200 transition-colors">{item.step}</span>
+
+          <div className="grid md:grid-cols-2 gap-12">
+            {/* Case 1: PDF/Receipt */}
+            <div className="group animate-fadeUp">
+              <div className="bg-white rounded-[2.5rem] p-4 shadow-xl shadow-slate-200/50 border border-slate-100 transition-all group-hover:shadow-2xl group-hover:border-indigo-100 overflow-hidden">
+                <div className="rounded-[2rem] overflow-hidden bg-slate-50">
+                  <img src="/images/before_after_receipt.png" className="w-full h-auto" alt="Receipt Extraction Example" />
                 </div>
-                <h3 className="text-lg font-headline font-black text-slate-900 mb-2">{item.title}</h3>
-                <p className="text-sm text-slate-500 leading-relaxed">{item.desc}</p>
+                <div className="p-8">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-[9px] font-black uppercase tracking-widest mb-4">Case 01: เอกสารกระดาษ</div>
+                  <h3 className="text-xl font-headline font-black text-slate-900 mb-2">สกัดใบเสร็จ / ใบกำกับภาษี</h3>
+                  <p className="text-sm text-slate-500 font-medium leading-relaxed">เปลี่ยนบิลกระดาษที่กองล้นโต๊ะ ให้เป็นข้อมูลดิจิทัลที่แยกแยะ วันที่, ร้านค้า, เลขที่ใบเสร็จ, และยอดเงินสุทธิให้คุณโดยอัตโนมัติ</p>
+                </div>
               </div>
-            ))}
+            </div>
+
+            {/* Case 2: Chat/Text */}
+            <div className="group animate-fadeUp">
+              <div className="bg-white rounded-[2.5rem] p-4 shadow-xl shadow-slate-200/50 border border-slate-100 transition-all group-hover:shadow-2xl group-hover:border-indigo-100 overflow-hidden">
+                <div className="rounded-[2rem] overflow-hidden bg-slate-50">
+                   <img src="/images/before_after_chat.png" className="w-full h-auto" alt="Chat Extraction Example" />
+                </div>
+                <div className="p-8">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[9px] font-black uppercase tracking-widest mb-4">Case 02: ข้อความไม่เป็นรูปทาง</div>
+                  <h3 className="text-xl font-headline font-black text-slate-900 mb-2">สกัดแชทลูกค้า / ออเดอร์</h3>
+                  <p className="text-sm text-slate-500 font-medium leading-relaxed">ก๊อปปี้ข้อความแชทมาวาง (Copy-Paste) AI จะทำการแยกชื่อ-ที่อยู่, เบอร์โทร, รายการสินค้า และยอดโอนให้ทันที ไม่ต้องพิมพ์ตามเองให้เหนื่อย</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ===== HOW IT WORKS (Alternating) ===== */}
+      <section className="py-24 px-6 bg-white overflow-hidden">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-20">
+            <p className="text-indigo-600 font-black uppercase tracking-[0.2em] text-[10px] mb-3">STREAMLINED PROCESS</p>
+            <h2 className="text-3xl md:text-5xl font-headline font-black tracking-tight text-slate-900">3 ขั้นตอนสู่ระบบงานอัตโนมัติ</h2>
+          </div>
+
+          <div className="space-y-32">
+            {/* Step 1 */}
+            <div className="flex flex-col md:flex-row items-center gap-16 animate-fadeUp">
+              <div className="flex-1">
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-600 text-white font-headline font-black mb-6 shadow-lg shadow-indigo-200">01</div>
+                <h3 className="text-3xl font-headline font-black text-slate-900 mb-4">ตั้งค่าสิ่งที่คุณต้องการสกัด</h3>
+                <p className="text-lg text-slate-500 leading-relaxed font-medium">ไม่ต้องเขียนโปรแกรม ไม่ต้องทำเรื่องยาก! แค่กำหนดชื่อคอลัมน์ที่คุณอยากได้ (เช่น วันที่, ยอดเงิน, เลขที่บิล) <span className="text-indigo-600 font-bold">จะกี่คอลัมน์ก็ได้</span> หน้าที่ที่เหลือปล่อยให้ AI ของเราจัดการสกัดข้อมูลมาให้เองตามคำสั่งคุณ</p>
+              </div>
+              <div className="flex-1 relative group">
+                <div className="absolute inset-0 bg-indigo-100 rounded-3xl blur-3xl opacity-30 group-hover:opacity-50 transition-all" />
+                <div className="relative bg-white p-3 rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden transform group-hover:rotate-1 transition-all duration-700">
+                   <img src="/images/step1_template.png" className="w-full h-auto rounded-3xl" alt="Template Setup UI" />
+                </div>
+              </div>
+            </div>
+
+            {/* Step 2 */}
+            <div className="flex flex-col md:flex-row-reverse items-center gap-16 animate-fadeUp">
+              <div className="flex-1">
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-600 text-white font-headline font-black mb-6 shadow-lg shadow-indigo-200">02</div>
+                <h3 className="text-3xl font-headline font-black text-slate-900 mb-4">อัปโหลดไฟล์ หรือวางข้อความ</h3>
+                <p className="text-lg text-slate-500 leading-relaxed font-medium">ลากไฟล์ PDF, รูปภาพ หรือเพียงแค่ก๊อปปี้ข้อความมายัดใส่ระบบ รองรับทุกไฟล์เอกสารและรูปภาพที่ AI สามารถอ่านออกได้ ระบบจะเริ่มประมวลผลทันทีในไม่กี่วินาที</p>
+              </div>
+              <div className="flex-1 relative group">
+                <div className="absolute inset-0 bg-indigo-100 rounded-3xl blur-3xl opacity-30 group-hover:opacity-50 transition-all" />
+                <div className="relative bg-gradient-to-br from-indigo-500 to-indigo-700 p-12 rounded-[2.5rem] shadow-2xl flex items-center justify-center text-white h-[400px]">
+                   <div className="flex flex-col items-center gap-6">
+                      <div className="w-24 h-24 rounded-3xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 animate-bounce">
+                        <Upload size={48} />
+                      </div>
+                      <div className="text-center">
+                         <p className="font-headline font-black text-2xl mb-1">Drag & Drop Here</p>
+                         <p className="text-indigo-100 font-bold opacity-80 text-sm italic">Supports Multiple PDFs & Images</p>
+                      </div>
+                   </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Step 3 */}
+            <div className="flex flex-col md:flex-row items-center gap-16 animate-fadeUp">
+              <div className="flex-1">
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-600 text-white font-headline font-black mb-6 shadow-lg shadow-indigo-200">03</div>
+                <h3 className="text-3xl font-headline font-black text-slate-900 mb-4">รับข้อมูลเป็น CSV หรือ Sync Sheet</h3>
+                <p className="text-lg text-slate-500 leading-relaxed font-medium">ข้อมูลที่ AI สกัดได้จะปรากฏในตารางทันที คุณสามารถ <span className="text-indigo-600 font-bold">ดาวน์โหลดเป็น CSV</span> ได้เลย หรือถ้ายากกว่านั้น... แค่เชื่อมต่อ <span className="text-emerald-600 font-bold underline decoration-emerald-200 decoration-4">Google Sheet</span> ข้อมูลจะถูกส่งไปอัปเดตบรรทัดใหม่ให้คุณอัตโนมัติ!</p>
+              </div>
+              <div className="flex-1 relative group">
+                <div className="absolute inset-0 bg-indigo-100 rounded-3xl blur-3xl opacity-30 group-hover:opacity-50 transition-all" />
+                <div className="relative bg-white p-3 rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden transform group-hover:-rotate-1 transition-all duration-700">
+                   <img src="/images/step3_sheets.png" className="w-full h-auto rounded-3xl" alt="Google Sheets Sync UI" />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
