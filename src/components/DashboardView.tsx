@@ -102,7 +102,19 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'ประมวลผลล้มเหลว')
-      setResult(data.extracted_data)
+      // Safety net: parse if API returns string instead of object
+      let parsed = data.extracted_data
+      if (typeof parsed === 'string') {
+        try {
+          let clean = parsed.trim()
+          if (clean.startsWith('```')) clean = clean.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '').trim()
+          parsed = JSON.parse(clean)
+        } catch {
+          parsed = [{ raw_text: parsed }]
+        }
+      }
+      if (!Array.isArray(parsed)) parsed = [parsed]
+      setResult(parsed)
       setResultMeta({ credits_used: data.credits_used, credits_remaining: data.credits_remaining, tokens_used: data.tokens_used })
       toast('success', `สำเร็จ! ใช้ ${data.credits_used} เครดิต`)
       refreshProfile(); fetchDocs()
@@ -120,19 +132,41 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
     URL.revokeObjectURL(url); toast('success', 'ดาวน์โหลด CSV สำเร็จ!')
   }
 
+  const [detectedPages, setDetectedPages] = useState(0)
+
   const handleFileSelect = (file: File) => {
     setUploadFile(file)
     if (file.type === 'application/pdf') {
       const reader = new FileReader()
       reader.onload = (e) => {
         const content = e.target?.result as string
-        const match = content.match(/\/Type\s*\/Page\b/g)
-        const count = match ? match.length : 1
-        setPageCount(count * 2)
+
+        // วิธี 1: หา /Count N จาก Pages dictionary (แม่นยำที่สุด)
+        const countMatches = content.match(/\/Count\s+(\d+)/g)
+        if (countMatches) {
+          const counts = countMatches.map(m => {
+            const num = m.match(/\d+/)
+            return num ? parseInt(num[0]) : 0
+          })
+          const maxCount = Math.max(...counts)
+          if (maxCount > 0) {
+            setDetectedPages(maxCount)
+            setPageCount(maxCount)
+            return
+          }
+        }
+
+        // วิธี 2: นับ /Type /Page (ไม่รวม /Type /Pages ที่เป็น parent)
+        const pageMatches = content.match(/\/Type\s*\/Page(?!s)\b/g)
+        const count = pageMatches ? pageMatches.length : 1
+        setDetectedPages(count)
+        setPageCount(count)
       }
-      reader.readAsText(file.slice(0, 1000000)) 
+      // อ่านไฟล์ทั้งหมด (ไม่ใช่แค่ 1MB แรก)
+      reader.readAsText(file)
     } else {
-      setPageCount(2)
+      setDetectedPages(1)
+      setPageCount(1)
     }
   }
 
@@ -157,7 +191,7 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
           <div>
             <div className="flex items-center gap-2 mb-1">
               <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 mr-2">ระบบออนไลน์</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 mr-2">ระบบออนไลน์</span>
               <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
                 userProfile?.tier === 'pro' ? 'bg-amber-100 text-amber-600' :
                 userProfile?.tier === 'starter plus' ? 'bg-emerald-100 text-emerald-600' :
@@ -172,7 +206,7 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
           <div className="flex items-center gap-3">
             <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
               <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center text-amber-500"><Coins size={20} /></div>
-              <div><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">เครดิต</p><p className="text-xl font-black text-slate-900 font-headline leading-none">{userProfile?.credits?.toLocaleString() || 0}</p></div>
+              <div><p className="text-[9px] font-black text-slate-600 uppercase tracking-widest">เครดิต</p><p className="text-xl font-black text-slate-900 font-headline leading-none">{userProfile?.credits?.toLocaleString() || 0}</p></div>
             </div>
             <button onClick={() => { setView('landing'); setTimeout(() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' }), 100) }} className="h-14 px-5 bg-indigo-600 text-white rounded-2xl flex items-center gap-2 hover:bg-indigo-700 transition-all text-sm font-bold shadow-lg shadow-indigo-100"><Plus size={16} /> เติมเครดิต</button>
           </div>
@@ -208,7 +242,7 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
                   ) : (
                     <>
                       <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-300 group-hover:text-indigo-600 group-hover:bg-indigo-50 transition-all"><Upload size={24} /></div>
-                      <p className="text-sm font-bold text-slate-400 group-hover:text-slate-700 text-center">ลากไฟล์วางที่นี่<br />หรือคลิกเพื่อเลือก</p>
+                      <p className="text-sm font-bold text-slate-600 group-hover:text-slate-700 text-center">ลากไฟล์วางที่นี่<br />หรือคลิกเพื่อเลือก</p>
                       <p className="text-[10px] text-slate-300">PDF, JPG, PNG (สูงสุด 20MB)</p>
                     </>
                   )}
@@ -217,7 +251,7 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
                 <div className="space-y-2">
                   <div className="relative">
                     <textarea value={textContent} onChange={e => handleTextChange(e.target.value)} placeholder="วางข้อความยาวๆ ที่นี่... (เช่น อีเมล, บทความ, แชท)" className="w-full h-48 bg-white border-2 border-slate-200 rounded-3xl p-5 text-sm focus:border-indigo-400 outline-none transition-all resize-none font-body" />
-                    <div className="absolute bottom-4 right-5 flex gap-3 text-[10px] font-bold text-slate-400">
+                    <div className="absolute bottom-4 right-5 flex gap-3 text-[10px] font-bold text-slate-600">
                       <span>{textContent.length.toLocaleString()} ตัวอักษร</span>
                       <span>{textContent.trim() ? textContent.trim().split(/\s+/).length : 0} คำ</span>
                     </div>
@@ -229,7 +263,7 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
                 <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3 animate-fadeUp">
                   {templates.length > 0 && (
                     <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">เลือก Template</p>
+                      <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-1">เลือก Template</p>
                       <select value={selectedTemplate} onChange={e => setSelectedTemplate(e.target.value)} className={`w-full border rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${!selectedTemplate ? 'bg-rose-50 border-rose-200 text-rose-500' : 'bg-slate-50 border-slate-200'}`}>
                         <option value="">-- กรุณาเลือก Template เสมอ --</option>
                         {templates.map(t => <option key={t.id} value={t.id} className="text-slate-900">{t.name} ({(t.columns as TemplateColumn[]).length} คอลัมน์)</option>)}
@@ -237,13 +271,20 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
                       {!selectedTemplate && <p className="text-[9px] text-rose-400 mt-1 font-bold animate-pulse">* จำเป็นต้องเลือก Template เพื่อเริ่มระบบ</p>}
                     </div>
                   )}
+                  {inputMode === 'file' && detectedPages > 0 && (
+                    <div className="flex items-center justify-between p-3 bg-indigo-50 rounded-xl border border-indigo-100">
+                      <span className="text-xs font-bold text-indigo-700">จำนวนหน้าที่ตรวจพบ</span>
+                      <span className="text-lg font-black text-indigo-600">{detectedPages} <span className="text-xs font-bold">หน้า</span></span>
+                    </div>
+                  )}
                   <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">จำนวนหน้า (เครดิตที่จะใช้)</p>
+                    <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-1">จำนวนเครดิตที่ต้องการใช้</p>
                     <input type="number" min={1} max={100} value={pageCount} onChange={e => setPageCount(Math.max(1, Number(e.target.value)))} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold" />
+                    <p className="text-[9px] text-slate-400 mt-1 font-bold">ปรับได้เอง (1 เครดิต = 1 หน้า, ระบบจะนับหน้าอัตโนมัติ)</p>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-amber-50 rounded-xl border border-amber-100">
-                    <span className="text-xs font-bold text-amber-700">เครดิตที่จะใช้</span>
-                    <span className="text-lg font-black text-amber-600">{pageCount} <span className="text-xs font-bold">{inputMode === 'file' ? 'หน้า' : 'Credit'}</span></span>
+                    <span className="text-xs font-bold text-amber-700">เครดิตที่จะหัก</span>
+                    <span className="text-lg font-black text-amber-600">{pageCount} <span className="text-xs font-bold">Cr</span></span>
                   </div>
                   <button onClick={processDocument} disabled={processing} className="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-indigo-100">
                     {processing ? <><Loader2 className="animate-spin" size={18} /> กำลังประมวลผล...</> : <><Zap size={18} /> เริ่มประมวลผล</>}
@@ -267,7 +308,7 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
                     </div>
                   )}
                   <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest">ผลลัพธ์ ({result.length} รายการ)</p>
+                    <p className="text-xs font-black text-slate-600 uppercase tracking-widest">ผลลัพธ์ ({result.length} รายการ)</p>
                     <div className="flex gap-2">
                        <button onClick={() => exportCSV(result)} className="flex items-center gap-2 bg-slate-100 text-slate-600 font-bold text-xs px-4 py-2 rounded-xl hover:bg-slate-200"><Download size={14} /> CSV</button>
                        {hasGSheet && (
@@ -285,8 +326,8 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
               ) : (
                 <div className="bg-white border border-slate-200 rounded-3xl p-10 flex flex-col items-center justify-center text-center h-full min-h-[300px]">
                   <FileText size={48} className="text-slate-200 mb-4" />
-                  <p className="text-sm font-bold text-slate-400">ยังไม่มีเอกสารที่ประมวลผล</p>
-                  <p className="text-xs text-slate-300 mt-1">อัปโหลดไฟล์และกด "เริ่มประมวลผล" เพื่อเริ่มต้น</p>
+                  <p className="text-sm font-bold text-slate-600">ยังไม่มีเอกสารที่ประมวลผล</p>
+                  <p className="text-xs text-slate-500 mt-1 font-bold">อัปโหลดไฟล์และกด "เริ่มประมวลผล" เพื่อเริ่มต้น</p>
                 </div>
               )}
             </div>
@@ -299,7 +340,7 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
             {!showBuilder ? (
               <>
                 <div className="mb-8">
-                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">🚀 เริ่มต้นจาก Template สำเร็จรูป</p>
+                  <p className="text-xs font-black text-slate-600 uppercase tracking-widest mb-4">🚀 เริ่มต้นจาก Template สำเร็จรูป</p>
                   <div className="grid md:grid-cols-3 gap-4">
                     {PRESETS.map((p, i) => (
                       <button key={i} onClick={() => usePreset(p)} className="bg-white border border-slate-200 rounded-2xl p-5 text-left hover:border-indigo-300 hover:shadow-md transition-all group relative overflow-hidden">
@@ -307,14 +348,14 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
                           <h4 className="font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">{p.name}</h4>
                           <span className={`text-[8px] font-black uppercase tracking-tighter px-2 py-0.5 rounded-full ${p.tier === 'Pro' ? 'bg-amber-100 text-amber-600' : 'bg-indigo-100 text-indigo-600'}`}>{p.tier}</span>
                         </div>
-                        <p className="text-xs text-slate-400 mb-3 line-clamp-1">{p.desc}</p>
+                        <p className="text-xs text-slate-600 mb-3 line-clamp-1 font-bold">{p.desc}</p>
                         <div className="flex gap-1 flex-wrap">{p.columns.map((c, ci) => <span key={ci} className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold">{c.name}</span>)}</div>
                       </button>
                     ))}
                   </div>
                 </div>
                 <div className="flex items-center justify-between mb-4">
-                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest">📋 Templates ของคุณ (สูงสุด {maxCols} คอลัมน์)</p>
+                  <p className="text-xs font-black text-slate-600 uppercase tracking-widest">📋 Templates ของคุณ ({templates.length}/{maxTemplates})</p>
                   <button onClick={() => setShowBuilder(true)} className="flex items-center gap-2 bg-indigo-600 text-white font-bold text-xs px-4 py-2 rounded-xl hover:bg-indigo-700 transition-all"><Plus size={14} /> สร้างใหม่</button>
                 </div>
                 {templates.length === 0 ? (
@@ -324,7 +365,7 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
                     <div key={t.id} className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between hover:shadow-sm transition-all">
                       <div>
                         <h4 className="font-bold text-slate-900">{t.name}</h4>
-                        {t.description && <p className="text-xs text-slate-400 mt-0.5">{t.description}</p>}
+                        {t.description && <p className="text-xs text-slate-500 mt-0.5 font-bold">{t.description}</p>}
                         <div className="flex gap-1 mt-2 flex-wrap">{(t.columns as TemplateColumn[]).map((c, ci) => <span key={ci} className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-bold">{c.name}</span>)}</div>
                       </div>
                       <button onClick={() => deleteTemplate(t.id)} className="text-slate-300 hover:text-rose-500 transition-colors p-2"><Trash2 size={16} /></button>
@@ -348,7 +389,7 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
                 </div>
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-3">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">คอลัมน์ที่ต้องการ ({tplCols.length}/{maxCols})</label>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">คอลัมน์ที่ต้องการ ({tplCols.length}/{maxCols})</label>
                     <button onClick={addCol} disabled={tplCols.length >= maxCols} className="text-xs font-bold text-indigo-600 hover:text-indigo-800 disabled:text-slate-300 flex items-center gap-1"><Plus size={12} /> เพิ่มคอลัมน์</button>
                   </div>
                   <div className="space-y-2">
@@ -389,7 +430,7 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
                   </div>
                   <div>
                     <p className="font-bold text-slate-900 text-sm">{doc.original_filename || doc.filename}</p>
-                    <p className="text-[10px] text-slate-400">{new Date(doc.created_at).toLocaleString('th-TH')} · {doc.page_count} {doc.filename === 'Text Input' ? 'Credit' : 'หน้า'}</p>
+                    <p className="text-[10px] text-slate-600 font-bold">{new Date(doc.created_at).toLocaleString('th-TH')} · {doc.page_count} {doc.filename === 'Text Input' ? 'Credit' : 'หน้า'}</p>
                   </div>
                 </div>
                 {doc.status === 'completed' && doc.data && (
@@ -425,7 +466,7 @@ function HowToGuide() {
       {guideTab === 'csv' ? (
         <div className="bg-white border border-slate-200 rounded-3xl p-8">
           <h3 className="text-lg font-headline font-black text-slate-900 mb-2">📥 วิธี Export ข้อมูลเป็น CSV</h3>
-          <p className="text-sm text-slate-500 mb-6">ดาวน์โหลดข้อมูลที่ AI สกัดได้เป็นไฟล์ CSV เพื่อเปิดใน Excel หรือโปรแกรมตารางอื่นๆ</p>
+          <p className="text-sm text-slate-700 mb-6 font-bold">ดาวน์โหลดข้อมูลที่ AI สกัดได้เป็นไฟล์ CSV เพื่อเปิดใน Excel หรือโปรแกรมตารางอื่นๆ</p>
           <div className="space-y-6">
             {[
               { step: 1, title: 'อัปโหลดเอกสาร', desc: 'ไปที่แท็บ "อัปโหลด" แล้วลากไฟล์ PDF หรือรูปภาพวางลงในพื้นที่อัปโหลด' },
@@ -435,7 +476,7 @@ function HowToGuide() {
             ].map(s => (
               <div key={s.step} className="flex gap-4">
                 <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-black text-sm flex-shrink-0">{s.step}</div>
-                <div><h4 className="font-bold text-slate-900 text-sm">{s.title}</h4><p className="text-xs text-slate-500 mt-0.5">{s.desc}</p></div>
+                <div><h4 className="font-bold text-slate-900 text-sm">{s.title}</h4><p className="text-xs text-slate-600 mt-0.5 font-bold">{s.desc}</p></div>
               </div>
             ))}
           </div>
@@ -444,7 +485,7 @@ function HowToGuide() {
         <div className="space-y-6">
           <div className="bg-white border border-slate-200 rounded-3xl p-8">
             <h3 className="text-lg font-headline font-black text-slate-900 mb-2">📊 วิธีเชื่อมต่อ Google Sheets</h3>
-            <p className="text-sm text-slate-500 mb-6">ส่งข้อมูลที่ AI สกัดได้ตรงไปยัง Google Sheets ให้อัปเดตอัตโนมัติ</p>
+            <p className="text-sm text-slate-700 mb-6 font-bold">ส่งข้อมูลที่ AI สกัดได้ตรงไปยัง Google Sheets ให้อัปเดตอัตโนมัติ</p>
             <div className="space-y-6">
               {[
                 { step: 1, title: 'เปิด Google Sheets', desc: 'ไปที่ sheets.google.com แล้วสร้าง Spreadsheet ใหม่', extra: <a href="https://sheets.google.com" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-indigo-600 font-bold hover:underline mt-1"><ExternalLink size={10} /> เปิด Google Sheets</a> },
@@ -466,7 +507,7 @@ function HowToGuide() {
               ].map(s => (
                 <div key={s.step} className="flex gap-4">
                   <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-black text-sm flex-shrink-0">{s.step}</div>
-                  <div className="flex-1"><h4 className="font-bold text-slate-900 text-sm">{s.title}</h4><p className="text-xs text-slate-500 mt-0.5">{s.desc}</p>{s.extra}</div>
+                  <div className="flex-1"><h4 className="font-bold text-slate-900 text-sm">{s.title}</h4><p className="text-xs text-slate-600 mt-0.5 font-bold">{s.desc}</p>{s.extra}</div>
                 </div>
               ))}
             </div>
