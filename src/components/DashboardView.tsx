@@ -1,18 +1,33 @@
 import { useState, useEffect, useRef } from 'react'
-import { Coins, Plus, FileText, Upload, Download, X, Loader2, Copy, ExternalLink, CheckCircle2, Trash2, ArrowUp, ArrowDown, HelpCircle, Table, Zap, AlertCircle, Files, Info, Pencil } from 'lucide-react'
+import { Coins, Plus, FileText, Upload, Download, X, Loader2, Copy, ExternalLink, CheckCircle2, Trash2, ArrowUp, ArrowDown, HelpCircle, Table, Zap, AlertCircle, Files, Info, Pencil, UserCircle2, Globe } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useToast } from './Toast'
 import type { View, UserProfile, ExtractionTemplate, TemplateColumn, Document } from '../types'
 
 type DashTab = 'upload' | 'templates' | 'history' | 'howto'
 
-const PRESETS: { name: string; desc: string; columns: TemplateColumn[]; tier: 'Starter' | 'Pro' }[] = [
-  { name: 'ใบแจ้งหนี้ / Invoice', desc: 'สำหรับอ่านใบแจ้งหนี้ค่าสินค้าและบริการทั่วไป', columns: [{ name: 'เลขที่ใบแจ้งหนี้', type: 'text' }, { name: 'วันที่', type: 'date' }, { name: 'ชื่อผู้ออกเอกสาร', type: 'text' }, { name: 'ชื่อลูกค้า', type: 'text' }, { name: 'ยอดรวมสุทธิ', type: 'currency' }], tier: 'Starter' },
-  { name: 'ใบเสร็จรับเงิน / Receipt', desc: 'สำหรับสกัดข้อมูลจากใบเสร็จรับเงิน', columns: [{ name: 'เลขที่ใบเสร็จ', type: 'text' }, { name: 'วันที่', type: 'date' }, { name: 'รายการ', type: 'text' }, { name: 'ราคารวม', type: 'currency' }], tier: 'Starter' },
-  { name: 'สลิปโอนเงิน / Bank Slip', desc: 'สำหรับตรวจสอบยอดโอนเงินจากธนาคาร', columns: [{ name: 'ธนาคาร', type: 'text' }, { name: 'วัน-เวลาที่โอน', type: 'text' }, { name: 'ชื่อผู้โอน', type: 'text' }, { name: 'จำนวนเงิน', type: 'currency' }, { name: 'เลขที่อ้างอิง', type: 'text' }], tier: 'Starter' },
-  { name: 'บัตรประชาชน / ID Card', desc: 'สำหรับอ่านข้อมูลจากหน้าบัตรประชาชน', columns: [{ name: 'เลขประจำตัว', type: 'text' }, { name: 'ชื่อ-นามสกุล', type: 'text' }, { name: 'วันเกิด', type: 'date' }, { name: 'ที่อยู่', type: 'text' }], tier: 'Starter' },
-  { name: 'ประกันสังคม / Social Security', desc: 'สำหรับข้อมูลสิทธิประกันสังคม', columns: [{ name: 'เลขผู้ประกันตน', type: 'text' }, { name: 'ชื่อ-นามสกุล', type: 'text' }, { name: 'โรงพยาบาล', type: 'text' }, { name: 'วันหมดอายุสิทธิ', type: 'date' }], tier: 'Starter' },
-  { name: 'รายงานการขาย / Sales Report', desc: 'สกัดข้อมูลการขายรายวัน (Pro)', columns: [{ name: 'รหัสสินค้า', type: 'text' }, { name: 'ชื่อสินค้า', type: 'text' }, { name: 'หมวดหมู่', type: 'text' }, { name: 'จำนวน', type: 'number' }, { name: 'ราคาต่อหน่วย', type: 'currency' }, { name: 'ราคารวม', type: 'currency' }, { name: 'ช่องทางขาย', type: 'text' }, { name: 'หมายเหตุ', type: 'text' }], tier: 'Pro' },
+const PRESETS: { name: string; desc: string; columns: TemplateColumn[]; tier: 'Starter' | 'Pro'; category: string; custom_prompt?: string }[] = [
+  // FINANCE
+  { name: 'ใบแจ้งหนี้ / Invoice', desc: 'สำหรับสกัดข้อมูลจากใบแจ้งหนี้ค่าสินค้าและบริการ', columns: [{ name: 'เลขที่ใบแจ้งหนี้', type: 'text' }, { name: 'วันที่', type: 'date' }, { name: 'ผู้ออกเอกสาร', type: 'text' }, { name: 'ยอดรวมสุทธิ', type: 'currency' }], tier: 'Starter', category: 'finance' },
+  { name: 'ใบเสร็จรับเงิน / Receipt', desc: 'ใบเสร็จรับเงินค่าใช้จ่ายทั่วไป', columns: [{ name: 'เลขที่ใบเสร็จ', type: 'text' }, { name: 'วันที่', type: 'date' }, { name: 'รายการ', type: 'text' }, { name: 'ราคารวม', type: 'currency' }], tier: 'Starter', category: 'finance' },
+  { name: 'สลิปโอนเงิน / Bank Slip', desc: 'สกัดข้อมูลจากสลิปธนาคารเพื่อตรวจสอบยอด', columns: [{ name: 'ธนาคาร', type: 'text' }, { name: 'วัน-เวลาที่โอน', type: 'text' }, { name: 'ผู้โอน', type: 'text' }, { name: 'จำนวนเงิน', type: 'currency' }, { name: 'เลขที่อ้างอิง', type: 'text' }], tier: 'Starter', category: 'finance' },
+  { name: 'ใบกำกับภาษี / Tax Invoice', desc: 'ข้อมูลสำหรับออกรายงานภาษีซื้อ/ขาย', columns: [{ name: 'เลขที่ใบกำกับ', type: 'text' }, { name: 'วันที่', type: 'date' }, { name: 'เลขประจำตัวผู้เสียภาษี', type: 'text' }, { name: 'ราคาก่อน VAT', type: 'currency' }, { name: 'VAT', type: 'currency' }, { name: 'ยอดรวม', type: 'currency' }], tier: 'Pro', category: 'finance' },
+
+  // ADMIN & HR
+  { name: 'บัตรประชาชน / ID Card', desc: 'อ่านข้อมูลหน้าบัตรประชาชน', columns: [{ name: 'เลขประจำตัว', type: 'text' }, { name: 'ชื่อ-นามสกุล', type: 'text' }, { name: 'วันเกิด', type: 'date' }, { name: 'ที่อยู่', type: 'text' }], tier: 'Starter', category: 'admin' },
+  { name: 'พาสปอร์ต / Passport', desc: 'สกัดข้อมูลจากหน้า Passport สำหรับตรวจสอบสิทธิ์', columns: [{ name: 'เลขพาสปอร์ต', type: 'text' }, { name: 'สัญชาติ', type: 'text' }, { name: 'ชื่อ-นามสกุล', type: 'text' }, { name: 'วันหมดอายุ', type: 'date' }], tier: 'Starter', category: 'admin' },
+  { name: 'สัญญาจ้าง / Contract', desc: 'สรุปหัวใจสำคัญจากสัญญาจ้างงาน', columns: [{ name: 'คู่สัญญา', type: 'text' }, { name: 'ตำแหน่ง', type: 'text' }, { name: 'เงินเดือน', type: 'currency' }, { name: 'วันเริ่มงาน', type: 'date' }], tier: 'Pro', category: 'admin', custom_prompt: 'ระบุเงื่อนไขการเลิกจ้าง (ถ้ามี) มาไว้ในส่วนชื่อคอลัมน์ หมายเหตุ' },
+  { name: 'ใบรับรองแพทย์ / Medical Certificate', desc: 'สถิติการลาป่วยจากใบรับรองแพทย์', columns: [{ name: 'ชื่อคนไข้', type: 'text' }, { name: 'สถานพยาบาล', type: 'text' }, { name: 'จำนวนวันที่ลา', type: 'number' }, { name: 'ความเห็นแพทย์', type: 'text' }], tier: 'Starter', category: 'admin' },
+
+  // LOGISTICS
+  { name: 'ใบส่งของ / Delivery Order', desc: 'ตรวจสอบรายการส่งสินค้า', columns: [{ name: 'เลขที่ใบส่งของ', type: 'text' }, { name: 'ชื่อลูกค้า', type: 'text' }, { name: 'รายการสินค้า', type: 'text' }, { name: 'จำนวน', type: 'number' }], tier: 'Starter', category: 'logistics' },
+  { name: 'ใบสั่งซื้อ / Purchase Order', desc: 'สกัดข้อมูลจากใบ PO เพื่อนำไปคีย์เข้าระบบ ERP', columns: [{ name: 'เลขที่ PO', type: 'text' }, { name: 'ผู้ขาย', type: 'text' }, { name: 'วันที่สั่งซื้อ', type: 'date' }, { name: 'ยอดรวม', type: 'currency' }], tier: 'Starter', category: 'logistics' },
+  { name: 'Packing List', desc: 'รายละเอียดการบรรจุสินค้า (แบบคอลัมน์เยอะ)', columns: [{ name: 'รหัสสินค้า', type: 'text' }, { name: 'จำนวนกล่อง', type: 'number' }, { name: 'น้ำหนักสุทธิ', type: 'number' }, { name: 'หน่วย', type: 'text' }], tier: 'Pro', category: 'logistics' },
+
+  // AI & CREATIVE
+  { name: 'แปลเอกสาร / Translation', desc: 'สกัดข้อมูลพร้อมแปลภาษาไทยเป็นอังกฤษอัตโนมัติ', columns: [{ name: 'หัวข้อหลัก', type: 'text' }, { name: 'เนื้อหาไทย', type: 'text' }, { name: 'Translation (EN)', type: 'text' }], tier: 'Pro', category: 'ai', custom_prompt: 'สกัดหัวข้อและแปลเนื้อหาที่เป็นภาษาไทยให้กลายเป็นภาษาอังกฤษที่สละสลวยที่สุด' },
+  { name: 'สรุปใจความสำคัญ / Summary', desc: 'อ่านเนื้อหายาวๆ แล้วสรุปเป็นประเด็นหลัก', columns: [{ name: 'ประเด็นหลัก', type: 'text' }, { name: 'สรุป 1 ประโยค', type: 'text' }, { name: 'สิ่งที่ต้องทำต่อ', type: 'text' }], tier: 'Pro', category: 'ai', custom_prompt: 'สรุปเนื้อหาที่ได้ให้กระชับสไตล์ Bullet Point เพื่อให้อ่านง่ายและรวดเร็วคอลัมน์ "สิ่งที่ต้องทำต่อ" ให้สรุป Action item' },
+  { name: 'วิเคราะห์อารมณ์ / Sentiment', desc: 'ประเมินความรู้สึกของลูกค้าจากรีวิวหรือแชท', columns: [{ name: 'ชื่อลูกค้า', type: 'text' }, { name: 'ข้อความรีวิว', type: 'text' }, { name: 'ระดับอารมณ์', type: 'text' }, { name: 'ความเร่งด่วน', type: 'text' }], tier: 'Pro', category: 'ai', custom_prompt: 'วิเคราะห์ว่าข้อความเป็น Positive, Neutral หรือ Negative และระบุความเร่งด่วน (มาก, ปานกลาง, น้อย)' },
 ]
 
 type Props = { userProfile: UserProfile | null; setView: (v: View) => void; refreshProfile: () => void }
@@ -30,6 +45,7 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
   const [tplHeaderRow, setTplHeaderRow] = useState(1)
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [templateCategory, setTemplateCategory] = useState('all')
 
   // Input state
   const [inputMode, setInputMode] = useState<'file' | 'text'>('file')
@@ -106,7 +122,7 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
     setTab('templates')
   }
 
-  const usePreset = (preset: typeof PRESETS[0]) => { setEditingTemplateId(null); setTplName(preset.name); setTplDesc(preset.desc); setTplCols(preset.columns.slice(0, maxCols)); setTplCustomPrompt(''); setTplWebhookUrl(''); setTplHeaderRow(1); setShowBuilder(true); setTab('templates') }
+  const usePreset = (preset: typeof PRESETS[0]) => { setEditingTemplateId(null); setTplName(preset.name); setTplDesc(preset.desc); setTplCols(preset.columns.slice(0, maxCols)); setTplCustomPrompt(preset.custom_prompt || ''); setTplWebhookUrl(''); setTplHeaderRow(1); setShowBuilder(true); setTab('templates'); window.scrollTo({ top: 0, behavior: 'smooth' }) }
   const deleteTemplate = async (id: string) => { const { error } = await supabase.from('extraction_templates').delete().eq('id', id); if (error) toast('error', error.message); else { toast('success', 'ลบ Template แล้ว'); fetchTemplates() } }
 
   // === AI Processing (supports single file, text, or multi-file queue) ===
@@ -473,16 +489,37 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
             {!showBuilder ? (
               <>
                 <div className="mb-8">
-                  <p className="text-xs font-black text-slate-600 uppercase tracking-widest mb-4">🚀 เริ่มต้นจาก Template สำเร็จรูป</p>
+                  <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
+                    <p className="text-xs font-black text-slate-600 uppercase tracking-widest">🚀 เริ่มต้นจาก Template สำเร็จรูป</p>
+                    <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                      {[
+                        { id: 'all', name: 'ทั้งหมด', icon: <Files size={12} /> },
+                        { id: 'finance', name: 'บัญชี/การเงิน', icon: <Coins size={12} /> },
+                        { id: 'admin', name: 'ธุรการ/บุคคล', icon: <UserCircle2 size={12} /> },
+                        { id: 'logistics', name: 'ขนส่ง/คลังสินค้า', icon: <Globe size={12} /> },
+                        { id: 'ai', name: 'งาน AI/วิเคราะห์', icon: <Zap size={12} /> }
+                      ].map(cat => (
+                        <button key={cat.id} onClick={() => setTemplateCategory(cat.id)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold transition-all whitespace-nowrap border ${templateCategory === cat.id ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>
+                          {cat.icon} {cat.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <div className="grid md:grid-cols-3 gap-4">
-                    {PRESETS.map((p, i) => (
-                      <button key={i} onClick={() => usePreset(p)} className="bg-white border border-slate-200 rounded-2xl p-5 text-left hover:border-indigo-300 hover:shadow-md transition-all group relative overflow-hidden">
-                        <div className="flex justify-between items-start mb-1">
-                          <h4 className="font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">{p.name}</h4>
-                          <span className={`text-[8px] font-black uppercase tracking-tighter px-2 py-0.5 rounded-full ${p.tier === 'Pro' ? 'bg-amber-100 text-amber-600' : 'bg-indigo-100 text-indigo-600'}`}>{p.tier}</span>
+                    {PRESETS.filter(p => templateCategory === 'all' || p.category === templateCategory).map((p, i) => (
+                      <button key={i} onClick={() => usePreset(p)} className="bg-white border border-slate-200 rounded-3xl p-6 text-left hover:border-indigo-400 hover:shadow-xl hover:shadow-indigo-50/50 transition-all group relative overflow-hidden animate-fadeUp" style={{ animationDelay: `${i * 50}ms` }}>
+                        <div className="flex justify-between items-start mb-2">
+                          <h4 className="font-headline font-black text-slate-900 group-hover:text-indigo-600 transition-colors leading-tight">{p.name}</h4>
+                          <span className={`text-[8px] font-black uppercase tracking-tighter px-2 py-0.5 rounded-full flex-shrink-0 ${p.tier === 'Pro' ? 'bg-amber-100 text-amber-600' : 'bg-indigo-100 text-indigo-600'}`}>{p.tier}</span>
                         </div>
-                        <p className="text-xs text-slate-600 mb-3 line-clamp-1 font-bold">{p.desc}</p>
-                        <div className="flex gap-1 flex-wrap">{p.columns.map((c, ci) => <span key={ci} className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold">{c.name}</span>)}</div>
+                        <p className="text-[11px] text-slate-500 mb-4 line-clamp-2 font-bold leading-relaxed">{p.desc}</p>
+                        <div className="flex gap-1.5 flex-wrap mb-4">{p.columns.slice(0, 3).map((c, ci) => <span key={ci} className="text-[9px] bg-slate-50 text-slate-400 px-2 py-1 rounded-lg font-black uppercase tracking-widest border border-slate-100">{c.name}</span>)}{p.columns.length > 3 && <span className="text-[9px] text-slate-300 font-bold">+{p.columns.length - 3}</span>}</div>
+                        {p.custom_prompt && (
+                          <div className="flex items-center gap-1.5 text-[9px] font-black text-emerald-600 uppercase tracking-widest mt-auto opacity-70 group-hover:opacity-100 transition-opacity">
+                            <Zap size={10} fill="currentColor" /> Expert Prompt Included
+                          </div>
+                        )}
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50 rounded-full blur-[40px] -mr-12 -mt-12 opacity-0 group-hover:opacity-40 transition-opacity" />
                       </button>
                     ))}
                   </div>
@@ -547,25 +584,27 @@ function doPost(e) {
   const res = JSON.parse(e.postData.contents);
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   const headerRow = ${tplHeaderRow};
-  const data = res.data[0] || {};
+  const dataArray = Array.isArray(res.data) ? res.data : (res.data ? [res.data] : []);
   
-  const lastCol = sheet.getLastColumn();
-  let headers = [];
-  if (lastCol > 0) {
-    headers = sheet.getRange(headerRow, 1, 1, lastCol).getValues()[0].map(String);
-  }
-  
-  Object.keys(data).forEach(k => {
-    if (!headers.includes(k)) {
-      headers.push(k);
+  dataArray.forEach(data => {
+    const lastCol = sheet.getLastColumn();
+    let headers = [];
+    if (lastCol > 0) {
+      headers = sheet.getRange(headerRow, 1, 1, lastCol).getValues()[0].map(String).filter(h => h.trim() !== "");
+    }
+    
+    Object.keys(data).forEach(k => {
+      if (!headers.includes(k)) {
+        headers.push(k);
+      }
+    });
+    
+    if (headers.length > 0) {
+      sheet.getRange(headerRow, 1, 1, headers.length).setValues([headers]);
+      const rowData = headers.map(h => data[h] === undefined ? "" : data[h]);
+      sheet.appendRow(rowData);
     }
   });
-  
-  if (headers.length > 0) {
-    sheet.getRange(headerRow, 1, 1, headers.length).setValues([headers]);
-    const rowData = headers.map(h => data[h] === undefined ? "" : data[h]);
-    sheet.appendRow(rowData);
-  }
   
   return ContentService.createTextOutput("Success");
 }`;
