@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FileText, Zap, Shield, BarChart3, Clock, Rocket, PlayCircle, Upload, CheckCircle2, ChevronRight, Download, Eye, Layers, Brain, Globe, Mail, ArrowRight, Loader2 } from 'lucide-react';
+import { FileText, Zap, Shield, PlayCircle, Upload, CheckCircle2, Download, Brain, Globe, Mail, ArrowRight, Loader2 } from 'lucide-react';
 import type { PricingPlan, UseCase, View, UserProfile } from '../types'
 import Footer from './Footer'
 import { supabase } from '../lib/supabase'
@@ -317,25 +317,29 @@ export default function LandingPage({ pricingPlans, useCases, setView, userProfi
           </div>
           <div className="flex flex-col items-center justify-center gap-6 mt-12 py-8 border-t border-slate-100 animate-fadeIn">
              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Secure Payments via Stripe</p>
-             <div className="flex items-center gap-8 grayscale opacity-50 contrast-125">
-               <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" className="h-4" alt="Visa" />
-               <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" className="h-6" alt="Mastercard" />
-               <img src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg" className="h-6" alt="Stripe" />
-               <div className="flex items-center gap-1.5 font-black text-slate-900 italic">
-                 <div className="w-5 h-5 bg-indigo-600 text-white rounded-sm flex items-center justify-center not-italic text-[8px]">QR</div> PROMPTPAY
+             <div className="flex items-center gap-8 saturate-150">
+               <img src="https://upload.wikimedia.org/wikipedia/commons/5/5c/Visa_Inc._logo_%282021%E2%80%93present%29.svg" className="h-4 drop-shadow-sm" alt="Visa" />
+               <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" className="h-6 drop-shadow-sm" alt="Mastercard" />
+               <img src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg" className="h-6 drop-shadow-sm" alt="Stripe" />
+               <div className="flex items-center gap-1.5 font-black text-[#1a3761] italic">
+                 <div className="w-5 h-5 bg-[#1a3761] text-white rounded-sm flex items-center justify-center not-italic text-[8px] font-black">QR</div> <span className="text-[#00427a]">PROMPT</span><span className="text-[#bc107e]">PAY</span>
                </div>
              </div>
           </div>
 
           {/* Custom Plan */}
           {customPlan && (
-            <div className="bg-slate-900 rounded-3xl p-8 flex flex-col md:flex-row items-center justify-between gap-6 text-white">
-              <div>
-                <h3 className="text-xl font-headline font-black mb-1">Custom Plan</h3>
-                <p className="text-slate-400 text-sm">ต้องการแพ็กเกจแบบกำหนดเอง? ติดต่อเราเพื่อออกแบบแพ็กเกจที่เหมาะกับองค์กรของคุณ</p>
+            <div className="bg-slate-900 rounded-3xl p-8 flex flex-col md:flex-row items-center justify-between gap-6 text-white border border-slate-800 shadow-2xl relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-12 bg-indigo-500/10 blur-[100px] rounded-full group-hover:bg-indigo-500/20 transition-all" />
+              <div className="relative">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-[9px] font-black uppercase tracking-widest mb-4 border border-indigo-500/30">Enterprise & API</div>
+                <h3 className="text-2xl font-headline font-black mb-1">Custom Plan & API Integration</h3>
+                <p className="text-slate-400 text-sm font-medium leading-relaxed max-w-xl">
+                   ต้องการแพ็กเกจแบบกำหนดเอง? หรือเชื่อมต่อระบบผ่าน <span className="text-white">Enterprise API</span> และ <span className="text-white">Webhooks</span> สำหรับองค์กรขนาดใหญ่? ติดต่อเราเพื่อรับข้อเสนอพิเศษสำหรับการใช้งานระดับสูง
+                </p>
               </div>
-              <a href="mailto:support@docureader.ai" className="flex items-center gap-2 bg-white text-slate-900 font-bold px-6 py-3 rounded-2xl hover:bg-indigo-50 transition-all text-sm whitespace-nowrap">
-                <Mail size={16} /> ติดต่อเรา
+              <a href="mailto:support@docureader.ai" className="relative flex items-center gap-2 bg-white text-slate-900 font-bold px-8 py-4 rounded-2xl hover:bg-indigo-50 transition-all text-sm whitespace-nowrap shadow-lg hover:shadow-indigo-500/20 active:scale-95">
+                <Mail size={16} /> ติดต่อรับข้อเสนอพิเศษ
               </a>
             </div>
           )}
