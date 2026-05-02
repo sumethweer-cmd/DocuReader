@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
-import { Coins, Plus, FileText, Upload, Download, X, Loader2, Copy, ExternalLink, CheckCircle2, Trash2, ArrowUp, ArrowDown, HelpCircle, Table, Zap, AlertCircle, Files, Info, Pencil, UserCircle2, Globe, RotateCcw } from 'lucide-react'
+import { Coins, Plus, FileText, Upload, Download, X, Loader2, Copy, ExternalLink, CheckCircle2, Trash2, ArrowUp, ArrowDown, HelpCircle, Table, Zap, AlertCircle, Files, Info, Pencil, UserCircle2, Globe, RotateCcw, Users, Link, Building2, UserPlus } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useToast } from './Toast'
 import type { View, UserProfile, ExtractionTemplate, TemplateColumn, Document } from '../types'
 
-type DashTab = 'upload' | 'templates' | 'history' | 'howto'
+type DashTab = 'upload' | 'templates' | 'history' | 'howto' | 'team'
 
 const PRESETS: { name: string; desc: string; columns: TemplateColumn[]; tier: 'Starter' | 'Pro'; category: string; custom_prompt?: string }[] = [
   // FINANCE
@@ -42,6 +42,7 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
   const [tplCols, setTplCols] = useState<TemplateColumn[]>([{ name: '', type: 'text' }])
   const [tplCustomPrompt, setTplCustomPrompt] = useState('')
   const [tplWebhookUrl, setTplWebhookUrl] = useState('')
+  const [tplGoogleSheetUrl, setTplGoogleSheetUrl] = useState('')
   const [tplHeaderRow, setTplHeaderRow] = useState(1)
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -67,6 +68,19 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
   const maxTemplates = userProfile?.max_templates || 3
   const hasGSheet = userProfile?.has_googlesheets || false
 
+  // Team / Org state
+  type OrgInvite = { id: string; token: string; expires_at: string; used_at: string | null; used_by_line_user_id: string | null }
+  type OrgMember = { id: string; profile_id: string | null; role: string; created_at: string; profiles?: { full_name: string | null; email: string } }
+  type LineUserRow = { line_user_id: string; display_name: string | null; created_at: string }
+  const [org, setOrg] = useState<{ id: string; name: string; credits: bigint } | null>(null)
+  const [orgLoading, setOrgLoading] = useState(false)
+  const [orgName, setOrgName] = useState('')
+  const [invites, setInvites] = useState<OrgInvite[]>([])
+  const [orgMembers, setOrgMembers] = useState<OrgMember[]>([])
+  const [lineUsers, setLineUsers] = useState<LineUserRow[]>([])
+  const [generatingInvite, setGeneratingInvite] = useState(false)
+  const [copiedToken, setCopiedToken] = useState<string | null>(null)
+
   useEffect(() => { if (userProfile?.id) { fetchTemplates(); fetchDocs() } }, [userProfile?.id])
 
   const fetchTemplates = async () => {
@@ -79,6 +93,57 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
     if (!userProfile?.id) return
     const { data } = await supabase.from('documents').select('*').eq('user_id', userProfile.id).order('created_at', { ascending: false }).limit(20)
     if (data) setDocs(data as Document[])
+  }
+
+  const fetchOrg = async () => {
+    if (!userProfile?.id) return
+    setOrgLoading(true)
+    try {
+      const { data } = await supabase.from('organizations').select('*').eq('owner_id', userProfile.id).single()
+      if (data) {
+        setOrg(data)
+        const [{ data: inv }, { data: members }, { data: lu }] = await Promise.all([
+          supabase.from('org_invites').select('*').eq('org_id', data.id).order('created_at', { ascending: false }),
+          supabase.from('org_members').select('*, profiles(full_name, email)').eq('org_id', data.id),
+          supabase.from('line_users').select('line_user_id, display_name, created_at').eq('org_id', data.id),
+        ])
+        if (inv) setInvites(inv)
+        if (members) setOrgMembers(members as OrgMember[])
+        if (lu) setLineUsers(lu)
+      } else {
+        setOrg(null)
+      }
+    } finally {
+      setOrgLoading(false)
+    }
+  }
+
+  const createOrg = async () => {
+    if (!orgName.trim()) { toast('error', 'กรุณาตั้งชื่อองค์กร'); return }
+    setOrgLoading(true)
+    const { error } = await supabase.from('organizations').insert({ name: orgName.trim(), owner_id: userProfile!.id })
+    setOrgLoading(false)
+    if (error) { toast('error', error.message); return }
+    setOrgName('')
+    toast('success', 'สร้างองค์กรสำเร็จ!')
+    fetchOrg()
+  }
+
+  const generateInvite = async () => {
+    if (!org) return
+    setGeneratingInvite(true)
+    const { error } = await supabase.from('org_invites').insert({ org_id: org.id, created_by: userProfile!.id })
+    setGeneratingInvite(false)
+    if (error) { toast('error', error.message); return }
+    toast('success', 'สร้าง invite link สำเร็จ!')
+    fetchOrg()
+  }
+
+  const copyInviteLink = (token: string) => {
+    navigator.clipboard.writeText(`link ${token}`)
+    setCopiedToken(token)
+    toast('success', 'คัดลอก code แล้ว! วางใน Line bot ได้เลย')
+    setTimeout(() => setCopiedToken(null), 2000)
   }
 
   const addCol = () => { if (tplCols.length >= maxCols) { toast('error', `แพ็กเกจของคุณรองรับสูงสุด ${maxCols} คอลัมน์`); return }; setTplCols([...tplCols, { name: '', type: 'text' }]) }
@@ -94,13 +159,13 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
     setSaving(true)
     if (editingTemplateId) {
       // Update existing
-      const { error } = await supabase.from('extraction_templates').update({ name: tplName, description: tplDesc, custom_prompt: tplCustomPrompt, columns: validCols, webhook_url: tplWebhookUrl, header_row_index: tplHeaderRow }).eq('id', editingTemplateId)
+      const { error } = await supabase.from('extraction_templates').update({ name: tplName, description: tplDesc, custom_prompt: tplCustomPrompt, columns: validCols, webhook_url: tplWebhookUrl, google_sheet_url: tplGoogleSheetUrl || null, header_row_index: tplHeaderRow }).eq('id', editingTemplateId)
       setSaving(false)
       if (error) { toast('error', error.message); return }
       toast('success', 'อัปเดต Template สำเร็จ!')
     } else {
       // Create new
-      const { error } = await supabase.from('extraction_templates').insert({ user_id: userProfile!.id, name: tplName, description: tplDesc, custom_prompt: tplCustomPrompt, columns: validCols, webhook_url: tplWebhookUrl, header_row_index: tplHeaderRow })
+      const { error } = await supabase.from('extraction_templates').insert({ user_id: userProfile!.id, name: tplName, description: tplDesc, custom_prompt: tplCustomPrompt, columns: validCols, webhook_url: tplWebhookUrl, google_sheet_url: tplGoogleSheetUrl || null, header_row_index: tplHeaderRow })
       setSaving(false)
       if (error) { toast('error', error.message); return }
       toast('success', 'บันทึก Template สำเร็จ!')
@@ -118,13 +183,14 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
     setTplDesc(t.description || '')
     setTplCustomPrompt(t.custom_prompt || '')
     setTplWebhookUrl(t.webhook_url || '')
+    setTplGoogleSheetUrl((t as ExtractionTemplate & { google_sheet_url?: string }).google_sheet_url || '')
     setTplHeaderRow(t.header_row_index || 1)
     setTplCols((t.columns as TemplateColumn[]).length > 0 ? (t.columns as TemplateColumn[]) : [{ name: '', type: 'text' }])
     setShowBuilder(true)
     setTab('templates')
   }
 
-  const usePreset = (preset: typeof PRESETS[0]) => { setEditingTemplateId(null); setTplName(preset.name); setTplDesc(preset.desc); setTplCols(preset.columns.slice(0, maxCols)); setTplCustomPrompt(preset.custom_prompt || ''); setTplWebhookUrl(''); setTplHeaderRow(1); setShowBuilder(true); setTab('templates'); window.scrollTo({ top: 0, behavior: 'smooth' }) }
+  const usePreset = (preset: typeof PRESETS[0]) => { setEditingTemplateId(null); setTplName(preset.name); setTplDesc(preset.desc); setTplCols(preset.columns.slice(0, maxCols)); setTplCustomPrompt(preset.custom_prompt || ''); setTplWebhookUrl(''); setTplGoogleSheetUrl(''); setTplHeaderRow(1); setShowBuilder(true); setTab('templates'); window.scrollTo({ top: 0, behavior: 'smooth' }) }
   const deleteTemplate = async (id: string) => { const { error } = await supabase.from('extraction_templates').delete().eq('id', id); if (error) toast('error', error.message); else { toast('success', 'ลบ Template แล้ว'); fetchTemplates() } }
 
   // === AI Processing (supports single file, text, or multi-file queue) ===
@@ -377,8 +443,14 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
     { key: 'upload', label: 'อัปโหลด', icon: <Upload size={16} /> },
     { key: 'templates', label: 'Templates', icon: <Table size={16} /> },
     { key: 'history', label: 'ประวัติ', icon: <FileText size={16} /> },
+    { key: 'team', label: 'ทีม', icon: <Users size={16} /> },
     { key: 'howto', label: 'วิธีใช้งาน', icon: <HelpCircle size={16} /> },
   ]
+
+  const handleTabChange = (key: DashTab) => {
+    setTab(key)
+    if (key === 'team') fetchOrg()
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 pt-24 pb-20 md:pb-12 px-4 md:px-6">
@@ -412,7 +484,7 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
         {/* Tabs */}
         <div className="flex gap-1 bg-white p-1 rounded-2xl border border-slate-200 mb-8 overflow-x-auto">
           {tabs.map(t => (
-            <button key={t.key} onClick={() => setTab(t.key)} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${tab === t.key ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}>{t.icon} {t.label}</button>
+            <button key={t.key} onClick={() => handleTabChange(t.key)} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${tab === t.key ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}>{t.icon} {t.label}</button>
           ))}
         </div>
 
@@ -680,6 +752,10 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
                           <input value={tplWebhookUrl} onChange={e => setTplWebhookUrl(e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-base font-black text-indigo-700 placeholder:text-indigo-300" placeholder="https://..." />
                         </div>
                         <div>
+                          <label className="block text-xs font-bold uppercase tracking-widest text-slate-700 mb-1">Google Sheet URL (Line Bot)</label>
+                          <input value={tplGoogleSheetUrl} onChange={e => setTplGoogleSheetUrl(e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-base font-black text-emerald-700 placeholder:text-emerald-300" placeholder="https://docs.google.com/spreadsheets/d/..." />
+                        </div>
+                        <div>
                           <label className="block text-xs font-bold uppercase tracking-widest text-slate-700 mb-1">แถวที่เริ่มหัวตาราง (A1=1)</label>
                           <input type="number" min="1" value={tplHeaderRow} onChange={e => setTplHeaderRow(parseInt(e.target.value)||1)} className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-base font-black text-slate-900" />
                         </div>
@@ -828,6 +904,141 @@ function doPost(e) {
               </div>
             )
           }</div>
+        )}
+
+        {/* ========== Team Tab ========== */}
+        {tab === 'team' && (
+          <div className="space-y-6">
+            {orgLoading ? (
+              <div className="flex justify-center py-16"><Loader2 size={32} className="animate-spin text-indigo-500" /></div>
+            ) : !org ? (
+              /* No org yet — create one */
+              <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center max-w-lg mx-auto">
+                <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center mx-auto mb-4"><Building2 size={28} className="text-indigo-500" /></div>
+                <h2 className="text-xl font-black text-slate-900 mb-2">สร้างร้านหรือทีมของคุณ</h2>
+                <p className="text-sm text-slate-500 mb-6">ตั้งชื่อร้านหรือทีม เพื่อแชร์เครดิตและเชิญสมาชิกเข้า Line Bot</p>
+                <div className="flex gap-2">
+                  <input value={orgName} onChange={e => setOrgName(e.target.value)} onKeyDown={e => e.key === 'Enter' && createOrg()} placeholder="เช่น ร้าน ABC, ทีม Ops, บริษัท XYZ" className="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+                  <button onClick={createOrg} disabled={orgLoading} className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"><Plus size={15} /> สร้าง</button>
+                </div>
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Org Info + Invite Generator */}
+                <div className="space-y-4">
+                  <div className="bg-white rounded-2xl border border-slate-200 p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center"><Building2 size={20} className="text-indigo-500" /></div>
+                      <div>
+                        <p className="text-xs font-black text-slate-400 uppercase tracking-wider">ร้าน / ทีม</p>
+                        <p className="text-lg font-black text-slate-900">{org.name}</p>
+                      </div>
+                    </div>
+                    <div className="h-px bg-slate-100 mb-4" />
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-slate-400 font-black uppercase tracking-wider mb-1">เครดิตองค์กร</p>
+                        <p className="text-2xl font-black text-slate-900 font-headline">{Number(org.credits).toLocaleString()}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-slate-400 font-black uppercase tracking-wider mb-1">สมาชิก Line</p>
+                        <p className="text-2xl font-black text-slate-900 font-headline">{lineUsers.length}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Connect own Line account */}
+                  <div className="bg-indigo-50 rounded-2xl border border-indigo-200 p-6">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-lg">💬</span>
+                      <h3 className="font-black text-indigo-900 text-sm uppercase tracking-wider">เชื่อม Line Account ของฉัน</h3>
+                    </div>
+                    <p className="text-xs text-slate-600 mb-4">ทำครั้งเดียว — เพื่อใช้งาน Line Bot ในชื่อของคุณ</p>
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-start gap-2 text-xs text-slate-700">
+                        <span className="w-5 h-5 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black flex-shrink-0 mt-0.5">1</span>
+                        <span>กด <strong>สร้าง Invite Link</strong> ด้านล่าง แล้ว copy code</span>
+                      </div>
+                      <div className="flex items-start gap-2 text-xs text-slate-700">
+                        <span className="w-5 h-5 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black flex-shrink-0 mt-0.5">2</span>
+                        <span>เปิด Line แล้วค้นหา <strong>@P-Admin</strong> (หรือ add ไว้แล้ว)</span>
+                      </div>
+                      <div className="flex items-start gap-2 text-xs text-slate-700">
+                        <span className="w-5 h-5 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black flex-shrink-0 mt-0.5">3</span>
+                        <span>วาง code แล้วส่ง — ระบบเชื่อมบัญชีให้อัตโนมัติ</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Generate Invite */}
+                  <div className="bg-white rounded-2xl border border-slate-200 p-6">
+                    <div className="flex items-center gap-2 mb-3">
+                      <UserPlus size={16} className="text-indigo-500" />
+                      <h3 className="font-black text-slate-900 text-sm uppercase tracking-wider">เชิญสมาชิกทีม</h3>
+                    </div>
+                    <p className="text-xs text-slate-500 mb-4">สร้าง code แชร์ให้ทีม — แต่ละ code ใช้ได้ครั้งเดียว หมดอายุใน 7 วัน</p>
+                    <button onClick={generateInvite} disabled={generatingInvite} className="w-full py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2">
+                      {generatingInvite ? <Loader2 size={15} className="animate-spin" /> : <Link size={15} />}
+                      สร้าง Invite Link ใหม่
+                    </button>
+
+                    {/* Invite list */}
+                    {invites.length > 0 && (
+                      <div className="mt-4 space-y-2">
+                        {invites.slice(0, 5).map(inv => {
+                          const expired = new Date(inv.expires_at) < new Date()
+                          const used = !!inv.used_at
+                          return (
+                            <div key={inv.id} className={`flex items-center gap-2 p-3 rounded-xl border text-xs ${used ? 'bg-slate-50 border-slate-100 opacity-60' : expired ? 'bg-red-50 border-red-100 opacity-60' : 'bg-emerald-50 border-emerald-100'}`}>
+                              <code className="flex-1 font-mono text-slate-700 truncate">link {inv.token.slice(0, 12)}…</code>
+                              <span className={`px-2 py-0.5 rounded-full font-black text-[10px] ${used ? 'bg-slate-200 text-slate-500' : expired ? 'bg-red-100 text-red-500' : 'bg-emerald-100 text-emerald-700'}`}>
+                                {used ? 'ใช้แล้ว' : expired ? 'หมดอายุ' : 'ใช้ได้'}
+                              </span>
+                              {!used && !expired && (
+                                <button onClick={() => copyInviteLink(inv.token)} className="text-indigo-500 hover:text-indigo-700">
+                                  {copiedToken === inv.token ? <CheckCircle2 size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                                </button>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Line Members */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Users size={16} className="text-indigo-500" />
+                    <h3 className="font-black text-slate-900 text-sm uppercase tracking-wider">สมาชิกใน Line</h3>
+                  </div>
+                  {lineUsers.length === 0 ? (
+                    <div className="text-center py-8">
+                      <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-3"><Users size={20} className="text-slate-300" /></div>
+                      <p className="text-sm text-slate-400">ยังไม่มีสมาชิก</p>
+                      <p className="text-xs text-slate-400 mt-1">สร้าง invite link แล้วแชร์ใน Line group</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {lineUsers.map(lu => (
+                        <div key={lu.line_user_id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50">
+                          <div className="w-8 h-8 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                            <UserCircle2 size={16} className="text-emerald-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-slate-900 truncate">{lu.display_name || 'ไม่ทราบชื่อ'}</p>
+                            <p className="text-xs text-slate-400 truncate font-mono">{lu.line_user_id.slice(0, 20)}…</p>
+                          </div>
+                          <p className="text-[10px] text-slate-400 whitespace-nowrap">{new Date(lu.created_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
         {/* ========== How-to Tab ========== */}
