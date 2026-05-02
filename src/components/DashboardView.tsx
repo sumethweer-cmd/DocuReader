@@ -76,7 +76,7 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
   const [orgLoading, setOrgLoading] = useState(false)
   const [orgName, setOrgName] = useState('')
   const [invites, setInvites] = useState<OrgInvite[]>([])
-  const [orgMembers, setOrgMembers] = useState<OrgMember[]>([])
+  const [_orgMembers, setOrgMembers] = useState<OrgMember[]>([])
   const [lineUsers, setLineUsers] = useState<LineUserRow[]>([])
   const [generatingInvite, setGeneratingInvite] = useState(false)
   const [copiedToken, setCopiedToken] = useState<string | null>(null)
