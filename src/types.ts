@@ -1,5 +1,5 @@
 // Shared types across the P-Admin app
-export type View = 'landing' | 'auth' | 'dashboard' | 'admin'
+export type View = 'landing' | 'auth' | 'dashboard' | 'admin' | 'link-line'
 export type AuthMode = 'login' | 'register'
 
 export type AIConfig = {

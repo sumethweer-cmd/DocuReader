@@ -6,6 +6,7 @@ import LandingPage from './components/LandingPage'
 import AuthView from './components/AuthView'
 import DashboardView from './components/DashboardView'
 import AdminView from './components/AdminView'
+import LinkLineView from './components/LinkLineView'
 import type { View, AuthMode, AIConfig, PricingPlan, UseCase, AdminStats, UserProfile } from './types'
 
 function AppContent() {
@@ -31,6 +32,7 @@ function AppContent() {
   const [useCaseTitle, setUseCaseTitle] = useState('')
   const [useCaseDesc, setUseCaseDesc] = useState('')
   const [isAddingUseCase, setIsAddingUseCase] = useState(false)
+  const [pendingLinkToken, setPendingLinkToken] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => {
@@ -62,6 +64,16 @@ function AppContent() {
     } else if (urlParams.get('payment') === 'canceled') {
       window.history.replaceState({}, '', window.location.pathname)
       toast('error', 'ยกเลิกการชำระเงินแล้ว')
+    }
+
+    // LINE Account Link flow: /link-line?linkToken=xxx
+    if (window.location.pathname === '/link-line') {
+      const lt = urlParams.get('linkToken')
+      if (lt) {
+        setPendingLinkToken(lt)
+        setView('link-line')
+        window.history.replaceState({}, '', '/link-line')
+      }
     }
 
     return () => subscription.unsubscribe()
@@ -136,7 +148,7 @@ function AppContent() {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
-        setView('dashboard')
+        setView(pendingLinkToken ? 'link-line' : 'dashboard')
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'An error occurred'
@@ -194,6 +206,7 @@ function AppContent() {
         {view === 'landing' && <LandingPage pricingPlans={pricingPlans} useCases={useCases} setView={setView} userProfile={userProfile} />}
         {view === 'auth' && <AuthView authMode={authMode} setAuthMode={setAuthMode} handleAuth={handleAuth} email={email} setEmail={setEmail} password={password} setPassword={setPassword} fullName={fullName} setFullName={setFullName} phone={phone} setPhone={setPhone} authLoading={authLoading} message={message} />}
         {view === 'dashboard' && (session ? <DashboardView userProfile={userProfile} setView={setView} refreshProfile={() => fetchProfile((session as { user: { id: string } }).user.id)} /> : <AuthView authMode={authMode} setAuthMode={setAuthMode} handleAuth={handleAuth} email={email} setEmail={setEmail} password={password} setPassword={setPassword} fullName={fullName} setFullName={setFullName} phone={phone} setPhone={setPhone} authLoading={authLoading} message={message} />)}
+        {view === 'link-line' && <LinkLineView linkToken={pendingLinkToken || ''} session={session} onLoginNeeded={() => setView('auth')} />}
         {view === 'admin' && <AdminView aiConfigs={aiConfigs} apiKey={apiKey} setApiKey={setApiKey} stripeSecret={stripeSecret} setStripeSecret={setStripeSecret} stripePublishable={stripePublishable} setStripePublishable={setStripePublishable} toggleModel={toggleModel} updateSystemConfigs={updateSystemConfigs} setView={setView} useCaseTitle={useCaseTitle} setUseCaseTitle={setUseCaseTitle} useCaseDesc={useCaseDesc} setUseCaseDesc={setUseCaseDesc} addUseCase={addUseCase} isAddingUseCase={isAddingUseCase} stats={stats} pricingPlans={pricingPlans} refreshPricing={fetchPricing} />}
       </div>
     </div>

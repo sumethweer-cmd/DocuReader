@@ -1,0 +1,2951 @@
+{
+  "name": "P-Admin Line Chatbot v2",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "line-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Line Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        500
+      ],
+      "webhookId": "padmin-line-chatbot"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "OK",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "2",
+      "name": "Respond 200 OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        420,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst event = (body.events || [])[0];\nif (!event) return [];\nconst src = event.source || {};\nreturn [{ json: {\n  type: event.type,\n  replyToken: event.replyToken || null,\n  userId: src.userId || null,\n  groupId: src.groupId || null,\n  sourceType: src.type || 'user',\n  messageType: event.message ? event.message.type : null,\n  messageId: event.message ? event.message.id : null,\n  messageText: event.message ? event.message.text : null,\n  fileName: event.message ? (event.message.fileName || null) : null,\n  postbackData: event.postback ? event.postback.data : null,\n  linkResult: event.link ? event.link.result : null,\n  linkNonce:  event.link ? event.link.nonce : null,\n} }];"
+      },
+      "id": "3",
+      "name": "Extract Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.type }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "message",
+              "output": 0
+            },
+            {
+              "value2": "postback",
+              "output": 1
+            },
+            {
+              "value2": "follow",
+              "output": 2
+            },
+            {
+              "value2": "accountLink",
+              "output": 3
+            }
+          ]
+        },
+        "fallbackOutput": "none"
+      },
+      "id": "4",
+      "name": "Route by Event Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        640,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.messageType }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "image",
+              "output": 0
+            },
+            {
+              "value2": "file",
+              "output": 1
+            },
+            {
+              "value2": "text",
+              "output": 2
+            }
+          ]
+        },
+        "fallbackOutput": "none"
+      },
+      "id": "5",
+      "name": "Route by Message Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        860,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $input.first().json;\nconst flex = {type:'flex',altText:'ยินดีต้อนรับสู่ P-Admin!',contents:{type:'bubble',hero:{type:'box',layout:'vertical',paddingAll:'20px',contents:[{type:'text',text:'สวัสดีครับ!',weight:'bold',size:'xxl',align:'center'},{type:'text',text:'ผม พี่แอดมิน — AI แปลงเอกสารเป็นข้อมูล',wrap:true,align:'center',color:'#555555',size:'sm',margin:'sm'}]},body:{type:'box',layout:'vertical',spacing:'md',contents:[{type:'text',text:'ทำอะไรได้บ้าง?',weight:'bold',size:'md'},{type:'text',text:'• ส่งรูปเอกสาร → ได้ข้อมูลกลับทันที\\n• รองรับใบเสร็จ, invoice, ออเดอร์ ฯลฯ\\n• Export CSV และ sync Google Sheet\\n• พิมพ์ \"สร้าง template\" ให้ AI สร้างให้อัตโนมัติ',wrap:true,color:'#555555',size:'sm'}]},footer:{type:'box',layout:'vertical',spacing:'sm',contents:[{type:'button',action:{type:'uri',label:'สมัคร / เข้าสู่ระบบ',uri:'https://docu-reader-alpha.vercel.app'},style:'primary',color:'#4F46E5'}]}}};\nreturn [{json:{...ctx, replyMsg:{to:ctx.userId, messages:[flex]}}}];"
+      },
+      "id": "follow-build",
+      "name": "Build: Welcome",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        860,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/message/push",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer tM/N7+bK3B7ilg01vTz8I31ikjIr5ipbacL8+1m2mm3DZoHUFxeGThmjesjl953BsMCBoj3Lml0HLJ2+b3WgTFZPPm5UhyohZMFmgCC0OghO9EjfqGn78hsRc4jnH7nKkwd8Zb/VythuDydiOX/v4wdB04t89/1O/w1cDnyilFU="
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.replyMsg) }}",
+        "options": {}
+      },
+      "id": "follow-welcome",
+      "name": "Push: Welcome",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1080,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const event = $input.first().json;\nconst params = new URLSearchParams(event.postbackData || '');\nconst action = params.get('action') || '';\nconst templateId = params.get('template_id');\nreturn [{ json: {\n  ...event,\n  pbAction: action,\n  templateId: (templateId === 'auto' || !templateId) ? null : templateId,\n} }];"
+      },
+      "id": "pb-parse",
+      "name": "Parse Postback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        860,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.pbAction }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "select_template",
+              "output": 0
+            },
+            {
+              "value2": "template_confirm",
+              "output": 1
+            },
+            {
+              "value2": "template_cancel",
+              "output": 2
+            },
+            {
+              "value2": "skip_image",
+              "output": 3
+            }
+          ]
+        },
+        "fallbackOutput": "none"
+      },
+      "id": "pb-route",
+      "name": "Switch: Postback Action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        1080,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://sdnghecdrsukdgbxsjfl.supabase.co/rest/v1/line_pending_jobs?line_user_id=eq.{{ $json.userId }}&job_type=eq.extraction&limit=1",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "alwaysOutputData": true,
+      "id": "pb-get-pending",
+      "name": "PB: Get Pending",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1300,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const pb = $('Parse Postback').first().json;\nconst rows = $input.first().json;\nconst pending = Array.isArray(rows) ? rows[0] : null;\nreturn [{ json: { ...pb, pending, pendingFound: !!pending } }];"
+      },
+      "id": "pb-merge",
+      "name": "PB: Merge Pending",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.pendingFound }}",
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "pb-found",
+      "name": "PB: Pending Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1740,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/message/push",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer tM/N7+bK3B7ilg01vTz8I31ikjIr5ipbacL8+1m2mm3DZoHUFxeGThmjesjl953BsMCBoj3Lml0HLJ2+b3WgTFZPPm5UhyohZMFmgCC0OghO9EjfqGn78hsRc4jnH7nKkwd8Zb/VythuDydiOX/v4wdB04t89/1O/w1cDnyilFU="
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $json.userId, messages: [{ type: 'text', text: 'ไม่พบเอกสารที่รอประมวลผลครับ\\nส่งรูปภาพหรือ PDF ใหม่มาได้เลย' }] }) }}",
+        "options": {}
+      },
+      "id": "pb-no-pending",
+      "name": "PB: No Pending",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1960,
+        580
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/message/reply",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer tM/N7+bK3B7ilg01vTz8I31ikjIr5ipbacL8+1m2mm3DZoHUFxeGThmjesjl953BsMCBoj3Lml0HLJ2+b3WgTFZPPm5UhyohZMFmgCC0OghO9EjfqGn78hsRc4jnH7nKkwd8Zb/VythuDydiOX/v4wdB04t89/1O/w1cDnyilFU="
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ replyToken: $json.replyToken, messages: [{ type: 'text', text: '⏳ กำลังประมวลผล...\\nโปรดรอสักครู่นะครับ' }] }) }}",
+        "options": {}
+      },
+      "id": "pb-reply-processing",
+      "name": "PB: Reply Processing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1960,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://sdnghecdrsukdgbxsjfl.supabase.co/functions/v1/process-document-line",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ org_id: $json.pending.org_id, template_id: $json.templateId || null, line_user_id: $json.userId, line_message_id: $json.pending.line_message_id }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "pb-process",
+      "name": "PB: Process Document",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2180,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const pb = $('PB: Pending Found?').first().json;\nconst result = $input.first().json;\nif (!result.success) {\n  const errMap = { insufficient_credits: 'เครดิตไม่เพียงพอ\\nกรุณาเติมเครดิตที่ webapp', org_not_found: 'ไม่พบข้อมูลองค์กร' };\n  const msg = errMap[result.error] || ('เกิดข้อผิดพลาด: ' + result.error);\n  return [{ json: { userId: pb.userId, isError: true, errorText: msg } }];\n}\nconst data = result.extracted_data || [];\nif (data.length === 0) return [{ json: { userId: pb.userId, isError: true, errorText: 'ไม่พบข้อมูลในเอกสาร' } }];\nconst lines = [];\ndata.forEach(function(row, i) {\n  if (data.length > 1) lines.push('รายการที่ ' + (i+1));\n  Object.keys(row).forEach(function(k) { if (row[k] !== null && row[k] !== undefined && row[k] !== '') lines.push('• ' + k + ': ' + row[k]); });\n});\nconst summaryText = (result.template_name || 'เอกสาร') + ' | ' + data.length + ' รายการ\\nเครดิตคงเหลือ: ' + result.credits_remaining;\nconst footerBtns = [];\nif (result.google_sheet_url) footerBtns.push({ type: 'button', action: { type: 'uri', label: '📊 ดูใน Google Sheet', uri: result.google_sheet_url }, style: 'primary', color: '#34A853' });\nif (result.csv_url) footerBtns.push({ type: 'button', action: { type: 'uri', label: '📥 ดาวน์โหลด CSV', uri: result.csv_url }, style: 'secondary' });\nconst bodyContents = [\n  { type: 'text', text: '✅ แปลงข้อมูลแล้ว', weight: 'bold', size: 'lg', color: '#16A34A' },\n  { type: 'text', text: summaryText, wrap: true, size: 'sm', color: '#555555' },\n  { type: 'separator', margin: 'md' },\n  { type: 'text', text: lines.slice(0, 20).join('\\n'), wrap: true, size: 'sm', margin: 'md' },\n];\nconst flexContents = { type: 'bubble', body: { type: 'box', layout: 'vertical', spacing: 'sm', contents: bodyContents } };\nif (footerBtns.length > 0) flexContents.footer = { type: 'box', layout: 'vertical', spacing: 'sm', contents: footerBtns };\nreturn [{ json: { userId: pb.userId, isError: false, flexMsg: { type: 'flex', altText: '✅ ' + (result.template_name || 'เอกสาร') + ' — ' + data.length + ' รายการ', contents: flexContents } } }];"
+      },
+      "id": "pb-format",
+      "name": "PB: Format Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/message/push",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer tM/N7+bK3B7ilg01vTz8I31ikjIr5ipbacL8+1m2mm3DZoHUFxeGThmjesjl953BsMCBoj3Lml0HLJ2+b3WgTFZPPm5UhyohZMFmgCC0OghO9EjfqGn78hsRc4jnH7nKkwd8Zb/VythuDydiOX/v4wdB04t89/1O/w1cDnyilFU="
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $json.userId, messages: [$json.isError ? { type: 'text', text: $json.errorText } : $json.flexMsg] }) }}",
+        "options": {}
+      },
+      "id": "pb-push-result",
+      "name": "PB: Push Result",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2620,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "https://sdnghecdrsukdgbxsjfl.supabase.co/rest/v1/line_pending_jobs?line_user_id=eq.{{ $json.userId }}&job_type=eq.extraction",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "pb-delete-pending",
+      "name": "PB: Delete Pending",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2840,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://sdnghecdrsukdgbxsjfl.supabase.co/rest/v1/line_pending_jobs?line_user_id=eq.{{ $json.userId }}&job_type=eq.template_creation&limit=1",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "alwaysOutputData": true,
+      "id": "pb-tpl-get",
+      "name": "PB: Get Tpl Pending",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1300,
+        680
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const pb = $('Parse Postback').first().json;\nconst rows = $input.first().json;\nconst pending = Array.isArray(rows) ? rows[0] : null;\nconst found = !!pending;\nconst meta = (pending && pending.metadata) ? pending.metadata : {};\nconst draft = meta.draft || null;\nreturn [{ json: {\n  ...pb,\n  pending,\n  pendingFound: found,\n  draft,\n  tplOwnerId: meta.owner_id || null,\n  tplName: draft ? draft.name : '',\n  tplColumns: draft ? draft.columns : [],\n  tplPrompt: draft ? (draft.custom_prompt || '') : '',\n} }];"
+      },
+      "id": "pb-tpl-merge",
+      "name": "PB: Merge Tpl Pending",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        680
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.pendingFound }}",
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "pb-tpl-found",
+      "name": "PB: Tpl Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1740,
+        680
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/message/reply",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer tM/N7+bK3B7ilg01vTz8I31ikjIr5ipbacL8+1m2mm3DZoHUFxeGThmjesjl953BsMCBoj3Lml0HLJ2+b3WgTFZPPm5UhyohZMFmgCC0OghO9EjfqGn78hsRc4jnH7nKkwd8Zb/VythuDydiOX/v4wdB04t89/1O/w1cDnyilFU="
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ replyToken: $json.replyToken, messages: [{ type: 'text', text: 'หมดเวลาแล้วครับ ลองใหม่ได้โดยพิมพ์ \"สร้าง template\" ครับ' }] }) }}",
+        "options": {}
+      },
+      "id": "pb-tpl-notfound",
+      "name": "PB: Tpl Not Found",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1960,
+        780
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://sdnghecdrsukdgbxsjfl.supabase.co/rest/v1/extraction_templates",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ user_id: $json.tplOwnerId, name: $json.tplName, description: 'สร้างผ่าน Line Bot', columns: $json.tplColumns, custom_prompt: $json.tplPrompt, webhook_url: null, google_sheet_url: null, header_row_index: 1 }) }}",
+        "options": {}
+      },
+      "id": "pb-tpl-insert",
+      "name": "PB: Insert Template",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1960,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "https://sdnghecdrsukdgbxsjfl.supabase.co/rest/v1/line_pending_jobs?line_user_id=eq.{{ $json.userId }}&job_type=eq.template_creation",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "pb-tpl-delete",
+      "name": "PB: Delete Tpl Pending",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2180,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $input.first().json;\nconst flex = {type:'flex',altText:'สร้าง Template สำเร็จ!',contents:{type:'bubble',body:{type:'box',layout:'vertical',spacing:'sm',contents:[{type:'text',text:'สร้าง Template สำเร็จ!',weight:'bold',size:'lg',color:'#16A34A'},{type:'text',text:'📌 '+ctx.tplName,weight:'bold',size:'md',margin:'sm'},{type:'text',text:'มี '+ctx.tplColumns.length+' fields — พร้อมใช้งานแล้วครับ\\nส่งรูปเอกสารมาได้เลย!',wrap:true,size:'sm',color:'#555555',margin:'sm'}]},footer:{type:'box',layout:'vertical',contents:[{type:'button',action:{type:'uri',label:'แก้ไข Template',uri:'https://docu-reader-alpha.vercel.app'},style:'secondary'}]}}};\nreturn [{json:{...ctx, replyMsg:{to:ctx.userId, messages:[flex]}}}];"
+      },
+      "id": "pb-build-tpl-success",
+      "name": "PB: Build Tpl Created",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2180,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/message/push",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer tM/N7+bK3B7ilg01vTz8I31ikjIr5ipbacL8+1m2mm3DZoHUFxeGThmjesjl953BsMCBoj3Lml0HLJ2+b3WgTFZPPm5UhyohZMFmgCC0OghO9EjfqGn78hsRc4jnH7nKkwd8Zb/VythuDydiOX/v4wdB04t89/1O/w1cDnyilFU="
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.replyMsg) }}",
+        "options": {}
+      },
+      "id": "pb-tpl-success",
+      "name": "PB: Push Tpl Created",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2400,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "https://sdnghecdrsukdgbxsjfl.supabase.co/rest/v1/line_pending_jobs?line_user_id=eq.{{ $json.userId }}&job_type=eq.template_creation",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "pb-cancel-delete",
+      "name": "PB: Cancel Delete",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1300,
+        820
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/message/reply",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer tM/N7+bK3B7ilg01vTz8I31ikjIr5ipbacL8+1m2mm3DZoHUFxeGThmjesjl953BsMCBoj3Lml0HLJ2+b3WgTFZPPm5UhyohZMFmgCC0OghO9EjfqGn78hsRc4jnH7nKkwd8Zb/VythuDydiOX/v4wdB04t89/1O/w1cDnyilFU="
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ replyToken: $json.replyToken, messages: [{ type: 'text', text: 'ยกเลิกแล้วครับ 👍' }] }) }}",
+        "options": {}
+      },
+      "id": "pb-cancel-reply",
+      "name": "PB: Cancel Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1520,
+        820
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://sdnghecdrsukdgbxsjfl.supabase.co/rest/v1/line_pending_jobs?line_user_id=eq.{{ $json.userId }}&job_type=eq.template_creation&limit=1",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "alwaysOutputData": true,
+      "id": "pb-skip-get",
+      "name": "PB: Skip Get Pending",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1300,
+        960
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const pb = $('Parse Postback').first().json;\nconst rows = $input.first().json;\nconst pending = Array.isArray(rows) ? rows[0] : null;\nconst meta = (pending && pending.metadata) ? pending.metadata : {};\nconst updated = JSON.stringify({ step: 2, metadata: { ...meta, image_skipped: true } });\nreturn [{ json: { ...pb, pending, patchBody: updated } }];"
+      },
+      "id": "pb-skip-merge",
+      "name": "PB: Skip Merge",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        960
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://sdnghecdrsukdgbxsjfl.supabase.co/rest/v1/line_pending_jobs?line_user_id=eq.{{ $json.userId }}&job_type=eq.template_creation",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.patchBody }}",
+        "options": {}
+      },
+      "id": "pb-skip-update",
+      "name": "PB: Skip Update Pending",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1740,
+        960
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/message/reply",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer tM/N7+bK3B7ilg01vTz8I31ikjIr5ipbacL8+1m2mm3DZoHUFxeGThmjesjl953BsMCBoj3Lml0HLJ2+b3WgTFZPPm5UhyohZMFmgCC0OghO9EjfqGn78hsRc4jnH7nKkwd8Zb/VythuDydiOX/v4wdB04t89/1O/w1cDnyilFU="
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ replyToken: $json.replyToken, messages: [{ type: 'text', text: 'โอเคครับ 👍\\nอยากดึงข้อมูลอะไรบ้าง?\\n\\nตัวอย่าง: ชื่อลูกค้า, วันที่, ยอดรวม, เลขที่ใบแจ้งหนี้\\n\\nพิมพ์มาได้เลยครับ' }] }) }}",
+        "options": {}
+      },
+      "id": "pb-skip-reply",
+      "name": "PB: Reply Ask Fields",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1960,
+        960
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://sdnghecdrsukdgbxsjfl.supabase.co/rest/v1/rpc/get_org_by_line_user",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_line_user_id: $json.userId }) }}",
+        "options": {}
+      },
+      "alwaysOutputData": true,
+      "id": "img-resolve-org",
+      "name": "IMG: Resolve Org",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1080,
+        1120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const event = $('Extract Event').first().json;\nconst rows = $input.first().json;\nconst org = Array.isArray(rows) ? rows[0] : null;\nreturn [{ json: { ...event, org, orgFound: !!org } }];"
+      },
+      "id": "img-merge-org",
+      "name": "IMG: Merge Org",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        1120
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.orgFound }}",
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "img-org-found",
+      "name": "IMG: Org Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1520,
+        1120
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/user/{{ $json.userId }}/linkToken",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer tM/N7+bK3B7ilg01vTz8I31ikjIr5ipbacL8+1m2mm3DZoHUFxeGThmjesjl953BsMCBoj3Lml0HLJ2+b3WgTFZPPm5UhyohZMFmgCC0OghO9EjfqGn78hsRc4jnH7nKkwd8Zb/VythuDydiOX/v4wdB04t89/1O/w1cDnyilFU="
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {}
+      },
+      "id": "img-get-link-token",
+      "name": "IMG: Get Link Token",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1520,
+        1240
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('IMG: Merge Org').first().json;\nconst linkToken = $input.first().json.linkToken;\nconst linkUrl = 'https://docu-reader-alpha.vercel.app/link-line?linkToken=' + encodeURIComponent(linkToken);\nconst flex = {type:'flex',altText:'เชื่อม LINE กับ P-Admin',contents:{type:'bubble',body:{type:'box',layout:'vertical',spacing:'md',contents:[{type:'text',text:'🔗 เชื่อม LINE Account',weight:'bold',size:'lg'},{type:'text',text:'สมัครบัญชี P-Admin ก่อน แล้วกดปุ่มด้านล่างเพื่อเชื่อม LINE ได้เลยครับ',wrap:true,color:'#555555',size:'sm'}]},footer:{type:'box',layout:'vertical',contents:[{type:'button',action:{type:'uri',label:'สมัคร / เชื่อม LINE',uri:linkUrl},style:'primary',color:'#4F46E5'}]}}};\nreturn [{json:{...ctx, replyMsg:{replyToken:ctx.replyToken, messages:[flex]}}}];"
+      },
+      "id": "img-build-link-flex",
+      "name": "IMG: Build Link Flex",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1740,
+        1240
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/message/reply",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer tM/N7+bK3B7ilg01vTz8I31ikjIr5ipbacL8+1m2mm3DZoHUFxeGThmjesjl953BsMCBoj3Lml0HLJ2+b3WgTFZPPm5UhyohZMFmgCC0OghO9EjfqGn78hsRc4jnH7nKkwd8Zb/VythuDydiOX/v4wdB04t89/1O/w1cDnyilFU="
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.replyMsg) }}",
+        "options": {}
+      },
+      "id": "img-link-reply",
+      "name": "IMG: Link Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1960,
+        1240
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://sdnghecdrsukdgbxsjfl.supabase.co/rest/v1/line_pending_jobs?line_user_id=eq.{{ $json.userId }}&limit=1",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "alwaysOutputData": true,
+      "id": "img-get-pending",
+      "name": "IMG: Get Pending",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1740,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('IMG: Merge Org').first().json;\nconst rows = $input.first().json;\nconst pending = Array.isArray(rows) ? rows[0] : null;\nlet state = 'proceed';\nif (pending) {\n  const meta = pending.metadata || {};\n  if (pending.job_type === 'template_creation' && (pending.step || 0) === 1) {\n    state = 'template_step1';\n  } else if (pending.job_type === 'extraction') {\n    const ageMs = Date.now() - new Date(pending.created_at).getTime();\n    if (ageMs < 30 * 60 * 1000) state = 'extraction_lock';\n  }\n}\nreturn [{ json: { ...ctx, pending, state } }];"
+      },
+      "id": "img-classify",
+      "name": "IMG: Classify State",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1960,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.state }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "template_step1",
+              "output": 0
+            },
+            {
+              "value2": "extraction_lock",
+              "output": 1
+            },
+            {
+              "value2": "proceed",
+              "output": 2
+            }
+          ]
+        },
+        "fallbackOutput": "none"
+      },
+      "id": "img-state-switch",
+      "name": "IMG: Switch State",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        2180,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $input.first().json;\nconst meta = (ctx.pending && ctx.pending.metadata) ? ctx.pending.metadata : {};\nconst updatedMeta = { ...meta, image_message_id: ctx.messageId };\nreturn [{ json: { ...ctx, patchBody: JSON.stringify({ step: 2, metadata: updatedMeta }) } }];"
+      },
+      "id": "img-tpl1-prepare",
+      "name": "IMG: Tpl1 Prepare",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://sdnghecdrsukdgbxsjfl.supabase.co/rest/v1/line_pending_jobs?line_user_id=eq.{{ $json.userId }}&job_type=eq.template_creation",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.patchBody }}",
+        "options": {}
+      },
+      "id": "img-tpl1-update",
+      "name": "IMG: Tpl1 Update Pending",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2620,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/message/reply",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer tM/N7+bK3B7ilg01vTz8I31ikjIr5ipbacL8+1m2mm3DZoHUFxeGThmjesjl953BsMCBoj3Lml0HLJ2+b3WgTFZPPm5UhyohZMFmgCC0OghO9EjfqGn78hsRc4jnH7nKkwd8Zb/VythuDydiOX/v4wdB04t89/1O/w1cDnyilFU="
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ replyToken: $json.replyToken, messages: [{ type: 'text', text: 'ได้รับรูปแล้วครับ 📸\\nอยากดึงข้อมูลอะไรบ้าง?\\n\\nตัวอย่าง: ชื่อลูกค้า, วันที่, ยอดรวม\\n\\nพิมพ์มาได้เลยครับ' }] }) }}",
+        "options": {}
+      },
+      "id": "img-tpl1-reply",
+      "name": "IMG: Tpl1 Reply Ask Fields",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2840,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://sdnghecdrsukdgbxsjfl.supabase.co/rest/v1/extraction_templates?user_id=eq.{{ $json.org.owner_id }}&select=id,name&order=created_at.asc&limit=12",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "alwaysOutputData": true,
+      "id": "img-lock-get-tpls",
+      "name": "IMG: Lock Get Templates",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2400,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('IMG: Classify State').first().json;\nconst templates = $input.first().json;\nconst items = (Array.isArray(templates) ? templates : []).map(t => ({\n  type: 'action',\n  action: { type: 'postback', label: t.name.slice(0, 20), data: 'action=select_template&template_id=' + t.id, displayText: t.name },\n}));\nitems.unshift({ type: 'action', action: { type: 'postback', label: 'Auto Detect', data: 'action=select_template&template_id=auto', displayText: 'Auto Detect' } });\nconst msg = {\n  replyToken: ctx.replyToken,\n  messages: [{ type: 'text', text: '⚠️ มีเอกสารค้างอยู่ครับ\\nกรุณาเลือก Template ก่อนนะครับ', quickReply: { items: items.slice(0, 13) } }],\n};\nreturn [{ json: { ...ctx, lineMessage: msg } }];"
+      },
+      "id": "img-lock-build",
+      "name": "IMG: Lock Build QR",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2620,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/message/reply",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer tM/N7+bK3B7ilg01vTz8I31ikjIr5ipbacL8+1m2mm3DZoHUFxeGThmjesjl953BsMCBoj3Lml0HLJ2+b3WgTFZPPm5UhyohZMFmgCC0OghO9EjfqGn78hsRc4jnH7nKkwd8Zb/VythuDydiOX/v4wdB04t89/1O/w1cDnyilFU="
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.lineMessage) }}",
+        "options": {}
+      },
+      "id": "img-lock-reply",
+      "name": "IMG: Lock Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2840,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "https://sdnghecdrsukdgbxsjfl.supabase.co/rest/v1/line_pending_jobs?line_user_id=eq.{{ $json.userId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "img-proc-del-old",
+      "name": "IMG: Proceed Del Old",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2400,
+        1160
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://sdnghecdrsukdgbxsjfl.supabase.co/rest/v1/extraction_templates?user_id=eq.{{ $(\"IMG: Classify State\").first().json.org.owner_id }}&select=id,name&order=created_at.asc&limit=12",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "alwaysOutputData": true,
+      "id": "img-proc-get-tpls",
+      "name": "IMG: Proceed Get Templates",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2620,
+        1160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('IMG: Classify State').first().json;\nconst templates = $input.first().json;\nconst list = Array.isArray(templates) ? templates : [];\nconst items = list.map(t => ({\n  type: 'action',\n  action: { type: 'postback', label: t.name.slice(0, 20), data: 'action=select_template&template_id=' + t.id, displayText: t.name },\n}));\nitems.unshift({ type: 'action', action: { type: 'postback', label: 'Auto Detect', data: 'action=select_template&template_id=auto', displayText: 'Auto Detect' } });\nconst lineMessage = {\n  replyToken: ctx.replyToken,\n  messages: [{ type: 'text', text: 'ได้รับเอกสารแล้วครับ\\nเลือก Template:', quickReply: { items: items.slice(0, 13) } }],\n};\nreturn [{ json: { ...ctx, templates: list, hasTemplates: list.length > 0, lineMessage } }];"
+      },
+      "id": "img-proc-classify-tpls",
+      "name": "IMG: Proceed Classify Templates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2840,
+        1160
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.hasTemplates }}",
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "img-proc-has-tpls",
+      "name": "IMG: Has Templates?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        3060,
+        1160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $input.first().json;\nconst flex = {type:'flex',altText:'ยังไม่มี Template',contents:{type:'bubble',body:{type:'box',layout:'vertical',spacing:'md',contents:[{type:'text',text:'ยังไม่มี Template',weight:'bold',size:'lg'},{type:'text',text:'สร้าง Template ก่อนได้เลยครับ\\nพิมพ์ \"สร้าง template\" แล้วผมจะช่วยสร้างให้ หรือสร้างได้ที่ webapp',wrap:true,color:'#555555',size:'sm'}]},footer:{type:'box',layout:'vertical',contents:[{type:'button',action:{type:'uri',label:'สร้างที่ webapp',uri:'https://docu-reader-alpha.vercel.app'},style:'primary',color:'#4F46E5'}]}}};\nreturn [{json:{...ctx, replyMsg:{replyToken:ctx.replyToken, messages:[flex]}}}];"
+      },
+      "id": "img-build-no-tpls",
+      "name": "IMG: Build No Templates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3060,
+        1260
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/message/reply",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer tM/N7+bK3B7ilg01vTz8I31ikjIr5ipbacL8+1m2mm3DZoHUFxeGThmjesjl953BsMCBoj3Lml0HLJ2+b3WgTFZPPm5UhyohZMFmgCC0OghO9EjfqGn78hsRc4jnH7nKkwd8Zb/VythuDydiOX/v4wdB04t89/1O/w1cDnyilFU="
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.replyMsg) }}",
+        "options": {}
+      },
+      "id": "img-proc-no-tpls",
+      "name": "IMG: No Templates",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        3280,
+        1260
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://sdnghecdrsukdgbxsjfl.supabase.co/rest/v1/line_pending_jobs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ line_user_id: $json.userId, org_id: $json.org.org_id, line_message_id: $json.messageId, job_type: \"extraction\", step: 0, metadata: {} }) }}",
+        "options": {}
+      },
+      "id": "img-proc-store",
+      "name": "IMG: Store Extraction Pending",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        3280,
+        1060
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/message/reply",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer tM/N7+bK3B7ilg01vTz8I31ikjIr5ipbacL8+1m2mm3DZoHUFxeGThmjesjl953BsMCBoj3Lml0HLJ2+b3WgTFZPPm5UhyohZMFmgCC0OghO9EjfqGn78hsRc4jnH7nKkwd8Zb/VythuDydiOX/v4wdB04t89/1O/w1cDnyilFU="
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.lineMessage) }}",
+        "options": {}
+      },
+      "id": "img-proc-reply",
+      "name": "IMG: Reply Template Selection",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        3500,
+        1060
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://sdnghecdrsukdgbxsjfl.supabase.co/rest/v1/rpc/get_org_by_line_user",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_line_user_id: $json.userId }) }}",
+        "options": {}
+      },
+      "alwaysOutputData": true,
+      "id": "txt-resolve-org",
+      "name": "TXT: Resolve Org",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1080,
+        1560
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://sdnghecdrsukdgbxsjfl.supabase.co/rest/v1/line_pending_jobs?line_user_id=eq.{{ $(\"Extract Event\").first().json.userId }}&limit=1",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "alwaysOutputData": true,
+      "id": "txt-get-pending",
+      "name": "TXT: Get Pending",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1300,
+        1560
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const event = $('Extract Event').first().json;\nconst orgRows = $('TXT: Resolve Org').first().json;\nconst pendingRows = $input.first().json;\nconst org = Array.isArray(orgRows) ? orgRows[0] : null;\nconst pending = Array.isArray(pendingRows) ? pendingRows[0] : null;\nconst text = (event.messageText || '').trim().toLowerCase();\n\nlet state = 'fallback';\n\nif (pending && pending.job_type === 'template_creation') {\n  const step = pending.step || 0;\n  if (step === 2) state = 'template_step2';\n}\n\nif (state === 'fallback') {\n  const templateCmds = ['สร้าง template', 'สร้างtemplate', 'new template', 'template ใหม่', 'templateใหม่', 'create template', 'สร้างtemplate'];\n  if (templateCmds.some(kw => text.includes(kw))) state = 'template_command';\n}\n\nif (state === 'fallback') {\n  if (text === 'เครดิต' || text === 'credit' || text === 'credits' || text.includes('เครดิตคงเหลือ')) state = 'credits_query';\n}\n\n// Unregistered user on fallback/credits path → show account link button\nif ((state === 'fallback' || state === 'credits_query') && !org) {\n  state = 'not_registered';\n}\n\nreturn [{ json: { ...event, org, orgFound: !!org, pending, state, credits: org ? org.credits : null } }];"
+      },
+      "id": "txt-classify",
+      "name": "TXT: Classify State",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        1560
+      ]
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.state }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "template_step2",
+              "output": 0
+            },
+            {
+              "value2": "template_command",
+              "output": 1
+            },
+            {
+              "value2": "credits_query",
+              "output": 2
+            },
+            {
+              "value2": "not_registered",
+              "output": 3
+            },
+            {
+              "value2": "fallback",
+              "output": 4
+            }
+          ]
+        },
+        "fallbackOutput": "none"
+      },
+      "id": "txt-switch",
+      "name": "TXT: Switch State",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        1740,
+        1560
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $input.first().json;\nconst meta = (ctx.pending && ctx.pending.metadata) ? ctx.pending.metadata : {};\nconst reqBody = JSON.stringify({\n  org_id: ctx.org.org_id,\n  owner_id: meta.owner_id || ctx.org.owner_id,\n  line_message_id: meta.image_message_id || undefined,\n  user_fields_text: ctx.messageText || '',\n  save: false,\n});\nreturn [{ json: { ...ctx, edgeReqBody: reqBody } }];"
+      },
+      "id": "txt-step2-prepare",
+      "name": "TXT: Step2 Prepare",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1960,
+        1380
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://sdnghecdrsukdgbxsjfl.supabase.co/functions/v1/create-template-from-image",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.edgeReqBody }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "txt-step2-gen",
+      "name": "TXT: Step2 Gen Draft",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2180,
+        1380
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('TXT: Step2 Prepare').first().json;\nconst result = $input.first().json;\nif (!result.success || !result.draft) {\n  return [{ json: { ...ctx, draftError: true, draftErrMsg: result.error || 'ไม่สามารถสร้าง template ได้' } }];\n}\nconst draft = result.draft;\nconst meta = (ctx.pending && ctx.pending.metadata) ? ctx.pending.metadata : {};\nconst updatedMeta = { ...meta, draft, step: 3 };\nconst patchBody = JSON.stringify({ step: 3, metadata: updatedMeta });\nconst colLines = draft.columns.map(c => '• ' + c.name + ' (' + c.type + ')').join('\\n');\nconst confirmFlex = {\n  type: 'flex',\n  altText: 'ยืนยันสร้าง Template: ' + draft.name,\n  contents: {\n    type: 'bubble',\n    body: { type: 'box', layout: 'vertical', spacing: 'sm', contents: [\n      { type: 'text', text: '📋 Template ที่จะสร้าง', weight: 'bold', size: 'lg' },\n      { type: 'text', text: '📌 ' + draft.name, weight: 'bold', size: 'md', color: '#4F46E5', margin: 'md' },\n      { type: 'text', text: draft.columns.length + ' fields:', size: 'sm', color: '#555555', margin: 'sm' },\n      { type: 'text', text: colLines, wrap: true, size: 'sm', color: '#333333', margin: 'xs' },\n    ]},\n    footer: { type: 'box', layout: 'vertical', spacing: 'sm', contents: [\n      { type: 'button', action: { type: 'postback', label: '✅ ยืนยันสร้าง', data: 'action=template_confirm' }, style: 'primary', color: '#16A34A' },\n      { type: 'button', action: { type: 'postback', label: '❌ ยกเลิก', data: 'action=template_cancel' }, style: 'secondary' },\n    ]},\n  },\n};\nreturn [{ json: { ...ctx, draft, patchBody, confirmFlex, draftError: false } }];"
+      },
+      "id": "txt-step2-merge",
+      "name": "TXT: Step2 Merge Draft",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        1380
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://sdnghecdrsukdgbxsjfl.supabase.co/rest/v1/line_pending_jobs?line_user_id=eq.{{ $json.userId }}&job_type=eq.template_creation",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.patchBody }}",
+        "options": {}
+      },
+      "id": "txt-step2-update",
+      "name": "TXT: Step2 Update Pending",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2620,
+        1380
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/message/reply",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer tM/N7+bK3B7ilg01vTz8I31ikjIr5ipbacL8+1m2mm3DZoHUFxeGThmjesjl953BsMCBoj3Lml0HLJ2+b3WgTFZPPm5UhyohZMFmgCC0OghO9EjfqGn78hsRc4jnH7nKkwd8Zb/VythuDydiOX/v4wdB04t89/1O/w1cDnyilFU="
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ replyToken: $json.replyToken, messages: [$json.draftError ? { type: 'text', text: 'ขออภัยครับ ' + $json.draftErrMsg + ' ลองใหม่ได้เลย' } : $json.confirmFlex] }) }}",
+        "options": {}
+      },
+      "id": "txt-step2-reply",
+      "name": "TXT: Step2 Reply Confirm",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2840,
+        1380
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.orgFound }}",
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "txt-cmd-check",
+      "name": "TXT: Cmd Org Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1960,
+        1560
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $input.first().json;\nconst flex = {type:'flex',altText:'ยังไม่ได้เชื่อมบัญชี',contents:{type:'bubble',body:{type:'box',layout:'vertical',spacing:'md',contents:[{type:'text',text:'ยังไม่ได้เชื่อมบัญชี',weight:'bold',size:'lg'},{type:'text',text:'สมัครใช้งานที่ webapp แล้วเชื่อม Line account ในหน้าทีมได้เลยครับ',wrap:true,color:'#555555',size:'sm'}]},footer:{type:'box',layout:'vertical',contents:[{type:'button',action:{type:'uri',label:'สมัคร / เข้าสู่ระบบ',uri:'https://docu-reader-alpha.vercel.app'},style:'primary',color:'#4F46E5'}]}}};\nreturn [{json:{...ctx, replyMsg:{replyToken:ctx.replyToken, messages:[flex]}}}];"
+      },
+      "id": "txt-build-not-reg",
+      "name": "TXT: Build Not Reg",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1960,
+        1660
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/message/reply",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer tM/N7+bK3B7ilg01vTz8I31ikjIr5ipbacL8+1m2mm3DZoHUFxeGThmjesjl953BsMCBoj3Lml0HLJ2+b3WgTFZPPm5UhyohZMFmgCC0OghO9EjfqGn78hsRc4jnH7nKkwd8Zb/VythuDydiOX/v4wdB04t89/1O/w1cDnyilFU="
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.replyMsg) }}",
+        "options": {}
+      },
+      "id": "txt-cmd-not-reg",
+      "name": "TXT: Cmd Not Reg",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2180,
+        1660
+      ]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "https://sdnghecdrsukdgbxsjfl.supabase.co/rest/v1/line_pending_jobs?line_user_id=eq.{{ $json.userId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "txt-cmd-del-pending",
+      "name": "TXT: Cmd Del Pending",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2180,
+        1460
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://sdnghecdrsukdgbxsjfl.supabase.co/rest/v1/line_pending_jobs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ line_user_id: $json.userId, org_id: $json.org.org_id, line_message_id: \"\", job_type: \"template_creation\", step: 1, metadata: { owner_id: $json.org.owner_id } }) }}",
+        "options": {}
+      },
+      "id": "txt-cmd-store",
+      "name": "TXT: Cmd Store Pending",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2400,
+        1460
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/message/reply",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer tM/N7+bK3B7ilg01vTz8I31ikjIr5ipbacL8+1m2mm3DZoHUFxeGThmjesjl953BsMCBoj3Lml0HLJ2+b3WgTFZPPm5UhyohZMFmgCC0OghO9EjfqGn78hsRc4jnH7nKkwd8Zb/VythuDydiOX/v4wdB04t89/1O/w1cDnyilFU="
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ replyToken: $json.replyToken, messages: [{ type: 'text', text: 'สร้าง Template ใหม่ได้เลยครับ 🎉\\n\\nมีรูปตัวอย่างเอกสารมั้ยครับ?\\nถ้ามี ส่งรูปมาได้เลย\\nถ้าไม่มี กด \"ข้ามได้\" แล้วบอกว่าอยากดึงข้อมูลอะไรบ้างครับ', quickReply: { items: [{ type: 'action', action: { type: 'postback', label: 'ข้ามได้ ไม่มีรูป', data: 'action=skip_image', displayText: 'ข้ามได้ ไม่มีรูปตัวอย่าง' } }] } }] }) }}",
+        "options": {}
+      },
+      "id": "txt-cmd-reply",
+      "name": "TXT: Cmd Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2620,
+        1460
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/message/reply",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer tM/N7+bK3B7ilg01vTz8I31ikjIr5ipbacL8+1m2mm3DZoHUFxeGThmjesjl953BsMCBoj3Lml0HLJ2+b3WgTFZPPm5UhyohZMFmgCC0OghO9EjfqGn78hsRc4jnH7nKkwd8Zb/VythuDydiOX/v4wdB04t89/1O/w1cDnyilFU="
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ replyToken: $json.replyToken, messages: [{ type: 'text', text: $json.orgFound ? ('💳 เครดิตคงเหลือ\\n\\n' + $json.org.org_name + '\\n' + $json.credits + ' เครดิต') : 'กรุณาสมัครและเชื่อม Line account ก่อนนะครับ' }] }) }}",
+        "options": {}
+      },
+      "id": "txt-credits-reply",
+      "name": "TXT: Credits Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1960,
+        1740
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/user/{{ $json.userId }}/linkToken",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer tM/N7+bK3B7ilg01vTz8I31ikjIr5ipbacL8+1m2mm3DZoHUFxeGThmjesjl953BsMCBoj3Lml0HLJ2+b3WgTFZPPm5UhyohZMFmgCC0OghO9EjfqGn78hsRc4jnH7nKkwd8Zb/VythuDydiOX/v4wdB04t89/1O/w1cDnyilFU="
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {}
+      },
+      "id": "txt-get-link-token",
+      "name": "TXT: Get Link Token",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1960,
+        1840
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('TXT: Classify State').first().json;\nconst linkToken = $input.first().json.linkToken;\nconst linkUrl = 'https://docu-reader-alpha.vercel.app/link-line?linkToken=' + encodeURIComponent(linkToken);\nconst flex = {type:'flex',altText:'เชื่อม LINE กับ P-Admin',contents:{type:'bubble',body:{type:'box',layout:'vertical',spacing:'md',contents:[{type:'text',text:'🔗 เชื่อม LINE Account',weight:'bold',size:'lg'},{type:'text',text:'สมัครบัญชี P-Admin ก่อน แล้วกดปุ่มด้านล่างเพื่อเชื่อม LINE ได้เลยครับ',wrap:true,color:'#555555',size:'sm'}]},footer:{type:'box',layout:'vertical',contents:[{type:'button',action:{type:'uri',label:'สมัคร / เชื่อม LINE',uri:linkUrl},style:'primary',color:'#4F46E5'}]}}};\nreturn [{json:{...ctx, replyMsg:{replyToken:ctx.replyToken, messages:[flex]}}}];"
+      },
+      "id": "txt-build-link-flex",
+      "name": "TXT: Build Link Flex",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2180,
+        1840
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/message/reply",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer tM/N7+bK3B7ilg01vTz8I31ikjIr5ipbacL8+1m2mm3DZoHUFxeGThmjesjl953BsMCBoj3Lml0HLJ2+b3WgTFZPPm5UhyohZMFmgCC0OghO9EjfqGn78hsRc4jnH7nKkwd8Zb/VythuDydiOX/v4wdB04t89/1O/w1cDnyilFU="
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.replyMsg) }}",
+        "options": {}
+      },
+      "id": "txt-link-flex-reply",
+      "name": "TXT: Link Flex Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2400,
+        1840
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.linkResult }}",
+              "operation": "equal",
+              "value2": "ok"
+            }
+          ]
+        }
+      },
+      "id": "al-link-ok",
+      "name": "AL: Link OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        860,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://sdnghecdrsukdgbxsjfl.supabase.co/rest/v1/rpc/use_link_nonce",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmdoZWNkcnN1a2RnYnhzamZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTI5MTE5OSwiZXhwIjoyMDkwODY3MTk5fQ.sxfUuKto0yD9YUGszS2SO89GB6ccbbh3KGmOWOyW4t4"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_nonce: $json.linkNonce, p_line_user_id: $json.userId }) }}",
+        "options": {}
+      },
+      "alwaysOutputData": true,
+      "id": "al-use-nonce",
+      "name": "AL: Use Nonce",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1080,
+        740
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const event = $('AL: Link OK?').first().json;\nconst result = $input.first().json;\nconst orgName = result.org_name || '';\nconst msgText = result.success\n  ? '✅ เชื่อม LINE สำเร็จแล้วครับ!\\n\\n' + (orgName ? 'ทีม: ' + orgName + '\\n\\n' : '') + 'ตอนนี้ส่งรูปเอกสารมาได้เลยครับ!\\nพิมพ์ \"สร้าง template\" ถ้ายังไม่มี template'\n  : '❌ เชื่อม LINE ไม่สำเร็จครับ\\nลิงก์อาจหมดอายุแล้ว ลองกดปุ่มในบอทใหม่ได้เลย';\nreturn [{ json: { ...event, replyMsg: { to: event.userId, messages: [{ type: 'text', text: msgText }] } } }];"
+      },
+      "id": "al-build-ok-msg",
+      "name": "AL: Build OK Msg",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        740
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/message/push",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer tM/N7+bK3B7ilg01vTz8I31ikjIr5ipbacL8+1m2mm3DZoHUFxeGThmjesjl953BsMCBoj3Lml0HLJ2+b3WgTFZPPm5UhyohZMFmgCC0OghO9EjfqGn78hsRc4jnH7nKkwd8Zb/VythuDydiOX/v4wdB04t89/1O/w1cDnyilFU="
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.replyMsg) }}",
+        "options": {}
+      },
+      "id": "al-push-ok",
+      "name": "AL: Push OK",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1520,
+        740
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/message/push",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer tM/N7+bK3B7ilg01vTz8I31ikjIr5ipbacL8+1m2mm3DZoHUFxeGThmjesjl953BsMCBoj3Lml0HLJ2+b3WgTFZPPm5UhyohZMFmgCC0OghO9EjfqGn78hsRc4jnH7nKkwd8Zb/VythuDydiOX/v4wdB04t89/1O/w1cDnyilFU="
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $json.userId, messages: [{ type: 'text', text: 'เชื่อม LINE ไม่สำเร็จครับ ลองกดปุ่มในบอทใหม่ได้เลย' }] }) }}",
+        "options": {}
+      },
+      "id": "al-push-fail",
+      "name": "AL: Push Failed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1080,
+        860
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.messageText || \"(ผู้ใช้ส่ง \" + ($json.messageType || \"ข้อความ\") + \")\" }}",
+        "options": {
+          "systemMessage": "คุณคือ \"พี่แอดมิน\" — AI assistant ของ P-Admin บริการแปลงเอกสารเป็น structured data\n\nบริการ P-Admin:\n- ส่งรูปเอกสาร หรือ PDF ใน Line → เลือก Template → ได้ข้อมูลกลับทันที\n- รองรับทุกประเภท: ใบเสร็จ, invoice, ออเดอร์, VIN, stock ฯลฯ\n- Export CSV หรือ sync Google Sheet อัตโนมัติ\n- สร้าง Template ผ่าน chat: พิมพ์ \"สร้าง template\"\n- ดูเครดิตคงเหลือ: พิมพ์ \"เครดิต\"\n- สมัคร/ดูราคา: https://docu-reader-alpha.vercel.app\n\nกฎการตอบ:\n- ตอบภาษาไทย กระชับ เป็นมิตร ไม่เกิน 3-4 ประโยค\n- ถ้าไม่รู้บอกตรงๆ อย่า guess\n- ถ้าถามนอกเรื่อง service ให้พากลับมาอย่างสุภาพ\n- ถ้าผู้ใช้ส่ง sticker หรือไฟล์ที่ไม่ใช่เอกสาร ให้แนะนำให้ส่งรูปหรือ PDF มาแทน"
+        }
+      },
+      "id": "ai-agent",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        1960,
+        1940
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": {
+          "temperature": 0.7,
+          "maxOutputTokens": 512
+        }
+      },
+      "id": "ai-gemini",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1860,
+        2100
+      ]
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $(\"Extract Event\").first().json.userId }}",
+        "contextWindowLength": 6
+      },
+      "id": "ai-memory",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.2,
+      "position": [
+        2060,
+        2100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/message/reply",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer tM/N7+bK3B7ilg01vTz8I31ikjIr5ipbacL8+1m2mm3DZoHUFxeGThmjesjl953BsMCBoj3Lml0HLJ2+b3WgTFZPPm5UhyohZMFmgCC0OghO9EjfqGn78hsRc4jnH7nKkwd8Zb/VythuDydiOX/v4wdB04t89/1O/w1cDnyilFU="
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ replyToken: $(\"Extract Event\").first().json.replyToken, messages: [{ type: 'text', text: $json.output }] }) }}",
+        "options": {}
+      },
+      "id": "ai-reply",
+      "name": "Reply: AI Response",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2200,
+        1940
+      ]
+    }
+  ],
+  "connections": {
+    "Line Webhook": {
+      "main": [
+        [
+          {
+            "node": "Respond 200 OK",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Extract Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Event": {
+      "main": [
+        [
+          {
+            "node": "Route by Event Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Event Type": {
+      "main": [
+        [
+          {
+            "node": "Route by Message Type",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Parse Postback",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build: Welcome",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AL: Link OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build: Welcome": {
+      "main": [
+        [
+          {
+            "node": "Push: Welcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Message Type": {
+      "main": [
+        [
+          {
+            "node": "IMG: Resolve Org",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IMG: Resolve Org",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "TXT: Resolve Org",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Postback": {
+      "main": [
+        [
+          {
+            "node": "Switch: Postback Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch: Postback Action": {
+      "main": [
+        [
+          {
+            "node": "PB: Get Pending",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "PB: Get Tpl Pending",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "PB: Cancel Delete",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "PB: Skip Get Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PB: Get Pending": {
+      "main": [
+        [
+          {
+            "node": "PB: Merge Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PB: Merge Pending": {
+      "main": [
+        [
+          {
+            "node": "PB: Pending Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PB: Pending Found?": {
+      "main": [
+        [
+          {
+            "node": "PB: Reply Processing",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "PB: No Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PB: Reply Processing": {
+      "main": [
+        [
+          {
+            "node": "PB: Process Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PB: Process Document": {
+      "main": [
+        [
+          {
+            "node": "PB: Format Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PB: Format Result": {
+      "main": [
+        [
+          {
+            "node": "PB: Push Result",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "PB: Delete Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PB: Get Tpl Pending": {
+      "main": [
+        [
+          {
+            "node": "PB: Merge Tpl Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PB: Merge Tpl Pending": {
+      "main": [
+        [
+          {
+            "node": "PB: Tpl Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PB: Tpl Found?": {
+      "main": [
+        [
+          {
+            "node": "PB: Insert Template",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "PB: Tpl Not Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PB: Insert Template": {
+      "main": [
+        [
+          {
+            "node": "PB: Delete Tpl Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PB: Delete Tpl Pending": {
+      "main": [
+        [
+          {
+            "node": "PB: Build Tpl Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PB: Build Tpl Created": {
+      "main": [
+        [
+          {
+            "node": "PB: Push Tpl Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PB: Cancel Delete": {
+      "main": [
+        [
+          {
+            "node": "PB: Cancel Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PB: Skip Get Pending": {
+      "main": [
+        [
+          {
+            "node": "PB: Skip Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PB: Skip Merge": {
+      "main": [
+        [
+          {
+            "node": "PB: Skip Update Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PB: Skip Update Pending": {
+      "main": [
+        [
+          {
+            "node": "PB: Reply Ask Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IMG: Resolve Org": {
+      "main": [
+        [
+          {
+            "node": "IMG: Merge Org",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IMG: Merge Org": {
+      "main": [
+        [
+          {
+            "node": "IMG: Org Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IMG: Org Found?": {
+      "main": [
+        [
+          {
+            "node": "IMG: Get Pending",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IMG: Get Link Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IMG: Get Link Token": {
+      "main": [
+        [
+          {
+            "node": "IMG: Build Link Flex",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IMG: Build Link Flex": {
+      "main": [
+        [
+          {
+            "node": "IMG: Link Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IMG: Get Pending": {
+      "main": [
+        [
+          {
+            "node": "IMG: Classify State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IMG: Classify State": {
+      "main": [
+        [
+          {
+            "node": "IMG: Switch State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IMG: Switch State": {
+      "main": [
+        [
+          {
+            "node": "IMG: Tpl1 Prepare",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IMG: Lock Get Templates",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IMG: Proceed Del Old",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IMG: Tpl1 Prepare": {
+      "main": [
+        [
+          {
+            "node": "IMG: Tpl1 Update Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IMG: Tpl1 Update Pending": {
+      "main": [
+        [
+          {
+            "node": "IMG: Tpl1 Reply Ask Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IMG: Lock Get Templates": {
+      "main": [
+        [
+          {
+            "node": "IMG: Lock Build QR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IMG: Lock Build QR": {
+      "main": [
+        [
+          {
+            "node": "IMG: Lock Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IMG: Proceed Del Old": {
+      "main": [
+        [
+          {
+            "node": "IMG: Proceed Get Templates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IMG: Proceed Get Templates": {
+      "main": [
+        [
+          {
+            "node": "IMG: Proceed Classify Templates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IMG: Proceed Classify Templates": {
+      "main": [
+        [
+          {
+            "node": "IMG: Has Templates?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IMG: Has Templates?": {
+      "main": [
+        [
+          {
+            "node": "IMG: Store Extraction Pending",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IMG: Build No Templates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IMG: Build No Templates": {
+      "main": [
+        [
+          {
+            "node": "IMG: No Templates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IMG: Store Extraction Pending": {
+      "main": [
+        [
+          {
+            "node": "IMG: Reply Template Selection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TXT: Resolve Org": {
+      "main": [
+        [
+          {
+            "node": "TXT: Get Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TXT: Get Pending": {
+      "main": [
+        [
+          {
+            "node": "TXT: Classify State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TXT: Classify State": {
+      "main": [
+        [
+          {
+            "node": "TXT: Switch State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TXT: Switch State": {
+      "main": [
+        [
+          {
+            "node": "TXT: Step2 Prepare",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "TXT: Cmd Org Check",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "TXT: Credits Reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "TXT: Get Link Token",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TXT: Step2 Prepare": {
+      "main": [
+        [
+          {
+            "node": "TXT: Step2 Gen Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TXT: Step2 Gen Draft": {
+      "main": [
+        [
+          {
+            "node": "TXT: Step2 Merge Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TXT: Step2 Merge Draft": {
+      "main": [
+        [
+          {
+            "node": "TXT: Step2 Update Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TXT: Step2 Update Pending": {
+      "main": [
+        [
+          {
+            "node": "TXT: Step2 Reply Confirm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TXT: Cmd Org Check": {
+      "main": [
+        [
+          {
+            "node": "TXT: Cmd Del Pending",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "TXT: Build Not Reg",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TXT: Build Not Reg": {
+      "main": [
+        [
+          {
+            "node": "TXT: Cmd Not Reg",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TXT: Cmd Del Pending": {
+      "main": [
+        [
+          {
+            "node": "TXT: Cmd Store Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TXT: Cmd Store Pending": {
+      "main": [
+        [
+          {
+            "node": "TXT: Cmd Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TXT: Get Link Token": {
+      "main": [
+        [
+          {
+            "node": "TXT: Build Link Flex",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TXT: Build Link Flex": {
+      "main": [
+        [
+          {
+            "node": "TXT: Link Flex Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AL: Link OK?": {
+      "main": [
+        [
+          {
+            "node": "AL: Use Nonce",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AL: Push Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AL: Use Nonce": {
+      "main": [
+        [
+          {
+            "node": "AL: Build OK Msg",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AL: Build OK Msg": {
+      "main": [
+        [
+          {
+            "node": "AL: Push OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Reply: AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "padmin-line-chatbot-002",
+  "tags": []
+}
