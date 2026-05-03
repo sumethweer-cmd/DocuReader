@@ -885,7 +885,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.line.me/v2/bot/user/{{ $json.userId }}/linkToken",
+        "url": "={{ \"https://api.line.me/v2/bot/user/\" + $json.userId + \"/linkToken\" }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -1834,7 +1834,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.line.me/v2/bot/user/{{ $json.userId }}/linkToken",
+        "url": "={{ \"https://api.line.me/v2/bot/user/\" + $json.userId + \"/linkToken\" }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

@@ -452,7 +452,7 @@ const nodes = [
 
   // IMG: not registered → get LINE linkToken → reply with account-link flex
   post('img-get-link-token', 'IMG: Get Link Token',
-    'https://api.line.me/v2/bot/user/{{ $json.userId }}/linkToken',
+    '={{ "https://api.line.me/v2/bot/user/" + $json.userId + "/linkToken" }}',
     lineH(), '{}', [1520, 1240]),
   code('img-build-link-flex', 'IMG: Build Link Flex', imgBuildLinkFlexCode, [1740, 1240]),
   post('img-link-reply', 'IMG: Link Reply', LINE_REPLY, lineH(), '={{ JSON.stringify($json.replyMsg) }}', [1960, 1240]),
@@ -564,7 +564,7 @@ const nodes = [
 
   // TXT: not_registered → get LINE linkToken → reply with account-link flex
   post('txt-get-link-token', 'TXT: Get Link Token',
-    'https://api.line.me/v2/bot/user/{{ $json.userId }}/linkToken',
+    '={{ "https://api.line.me/v2/bot/user/" + $json.userId + "/linkToken" }}',
     lineH(), '{}', [1960, 1840]),
   code('txt-build-link-flex', 'TXT: Build Link Flex', txtBuildLinkFlexCode, [2180, 1840]),
   post('txt-link-flex-reply', 'TXT: Link Flex Reply',
