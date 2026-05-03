@@ -44,7 +44,6 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
   const [tplDesc, setTplDesc] = useState('')
   const [tplCols, setTplCols] = useState<TemplateColumn[]>([{ name: '', type: 'text' }])
   const [tplCustomPrompt, setTplCustomPrompt] = useState('')
-  const [tplWebhookUrl, setTplWebhookUrl] = useState('')
   const [tplGoogleSheetUrl, setTplGoogleSheetUrl] = useState('')
   const [tplHeaderRow, setTplHeaderRow] = useState(1)
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null)
@@ -191,7 +190,7 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
   }
 
   const resetBuilder = () => {
-    setShowBuilder(false); setEditingTemplateId(null); setTplName(''); setTplDesc(''); setTplCustomPrompt(''); setTplWebhookUrl(''); setTplHeaderRow(1); setTplCols([{ name: '', type: 'text' }])
+    setShowBuilder(false); setEditingTemplateId(null); setTplName(''); setTplDesc(''); setTplCustomPrompt(''); setTplGoogleSheetUrl(''); setTplHeaderRow(1); setTplCols([{ name: '', type: 'text' }])
   }
 
   const editTemplate = (t: ExtractionTemplate) => {
@@ -199,7 +198,6 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
     setTplName(t.name)
     setTplDesc(t.description || '')
     setTplCustomPrompt(t.custom_prompt || '')
-    setTplWebhookUrl(t.webhook_url || '')
     setTplGoogleSheetUrl((t as ExtractionTemplate & { google_sheet_url?: string }).google_sheet_url || '')
     setTplHeaderRow(t.header_row_index || 1)
     setTplCols((t.columns as TemplateColumn[]).length > 0 ? (t.columns as TemplateColumn[]) : [{ name: '', type: 'text' }])
