@@ -205,7 +205,7 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
     setTab('templates')
   }
 
-  const usePreset = (preset: typeof PRESETS[0]) => { setEditingTemplateId(null); setTplName(preset.name); setTplDesc(preset.desc); setTplCols(preset.columns.slice(0, maxCols)); setTplCustomPrompt(preset.custom_prompt || ''); setTplWebhookUrl(''); setTplGoogleSheetUrl(''); setTplHeaderRow(1); setShowBuilder(true); setTab('templates'); window.scrollTo({ top: 0, behavior: 'smooth' }) }
+  const usePreset = (preset: typeof PRESETS[0]) => { setEditingTemplateId(null); setTplName(preset.name); setTplDesc(preset.desc); setTplCols(preset.columns.slice(0, maxCols)); setTplCustomPrompt(preset.custom_prompt || ''); setTplGoogleSheetUrl(''); setTplHeaderRow(1); setShowBuilder(true); setTab('templates'); window.scrollTo({ top: 0, behavior: 'smooth' }) }
   const deleteTemplate = async (id: string) => { const { error } = await supabase.from('extraction_templates').delete().eq('id', id); if (error) toast('error', error.message); else { toast('success', 'ลบ Template แล้ว'); fetchTemplates() } }
 
   // === AI Processing (supports single file, text, or multi-file queue) ===
