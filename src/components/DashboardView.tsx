@@ -83,7 +83,7 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
   const [generatingInvite, setGeneratingInvite] = useState(false)
   const [copiedToken, setCopiedToken] = useState<string | null>(null)
 
-  useEffect(() => { if (userProfile?.id) { fetchTemplates(); fetchDocs() } }, [userProfile?.id])
+  useEffect(() => { if (userProfile?.id) { fetchTemplates(); fetchDocs(); fetchOrg() } }, [userProfile?.id])
 
   const fetchTemplates = async () => {
     if (!userProfile?.id) return
@@ -125,7 +125,11 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
     setOrgLoading(true)
     const { error } = await supabase.from('organizations').insert({ name: orgName.trim(), owner_id: userProfile!.id })
     setOrgLoading(false)
-    if (error) { toast('error', error.message); return }
+    if (error) {
+      // org อาจมีอยู่แล้ว (สร้างอัตโนมัติตอน generate invite) — fetch มาแสดงเลย
+      if (error.code === '23505') { fetchOrg(); return }
+      toast('error', error.message); return
+    }
     setOrgName('')
     toast('success', 'สร้างองค์กรสำเร็จ!')
     fetchOrg()
