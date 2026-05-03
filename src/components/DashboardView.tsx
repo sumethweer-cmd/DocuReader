@@ -6,6 +6,9 @@ import type { View, UserProfile, ExtractionTemplate, TemplateColumn, Document } 
 
 type DashTab = 'upload' | 'templates' | 'history' | 'howto' | 'team'
 
+// TODO: อัปเดตอีเมลนี้เมื่อ setup Google account สำหรับ P-Admin แล้ว
+const PADMIN_SHEETS_EMAIL = 'padmin.sync@gmail.com'
+
 const PRESETS: { name: string; desc: string; columns: TemplateColumn[]; tier: 'Starter' | 'Pro'; category: string; custom_prompt?: string }[] = [
   // FINANCE
   { name: 'ใบแจ้งหนี้ / Invoice', desc: 'สำหรับสกัดข้อมูลจากใบแจ้งหนี้ค่าสินค้าและบริการ', columns: [{ name: 'เลขที่ใบแจ้งหนี้', type: 'text' }, { name: 'วันที่', type: 'date' }, { name: 'ผู้ออกเอกสาร', type: 'text' }, { name: 'ยอดรวมสุทธิ', type: 'currency' }], tier: 'Starter', category: 'finance' },
@@ -173,13 +176,13 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
     setSaving(true)
     if (editingTemplateId) {
       // Update existing
-      const { error } = await supabase.from('extraction_templates').update({ name: tplName, description: tplDesc, custom_prompt: tplCustomPrompt, columns: validCols, webhook_url: tplWebhookUrl, google_sheet_url: tplGoogleSheetUrl || null, header_row_index: tplHeaderRow }).eq('id', editingTemplateId)
+      const { error } = await supabase.from('extraction_templates').update({ name: tplName, description: tplDesc, custom_prompt: tplCustomPrompt, columns: validCols, webhook_url: null, google_sheet_url: tplGoogleSheetUrl || null, header_row_index: tplHeaderRow }).eq('id', editingTemplateId)
       setSaving(false)
       if (error) { toast('error', error.message); return }
       toast('success', 'อัปเดต Template สำเร็จ!')
     } else {
       // Create new
-      const { error } = await supabase.from('extraction_templates').insert({ user_id: userProfile!.id, name: tplName, description: tplDesc, custom_prompt: tplCustomPrompt, columns: validCols, webhook_url: tplWebhookUrl, google_sheet_url: tplGoogleSheetUrl || null, header_row_index: tplHeaderRow })
+      const { error } = await supabase.from('extraction_templates').insert({ user_id: userProfile!.id, name: tplName, description: tplDesc, custom_prompt: tplCustomPrompt, columns: validCols, webhook_url: null, google_sheet_url: tplGoogleSheetUrl || null, header_row_index: tplHeaderRow })
       setSaving(false)
       if (error) { toast('error', error.message); return }
       toast('success', 'บันทึก Template สำเร็จ!')
@@ -760,65 +763,32 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
                   <div><label className="block text-xs font-bold uppercase tracking-widest text-slate-700 mb-1">คำอธิบาย (ไม่บังคับ)</label><input value={tplDesc} onChange={e => setTplDesc(e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-base font-bold text-slate-900 placeholder:text-slate-400" placeholder="อธิบายว่า Template นี้ใช้กับเอกสารประเภทไหน" /></div>
                   {hasGSheet && (
                     <>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex gap-3 items-start">
+                        <span className="text-lg flex-shrink-0">📋</span>
                         <div>
-                          <label className="block text-xs font-bold uppercase tracking-widest text-slate-700 mb-1">Webhook URL (Sync to Sheets)</label>
-                          <input value={tplWebhookUrl} onChange={e => setTplWebhookUrl(e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-base font-black text-indigo-700 placeholder:text-indigo-300" placeholder="https://..." />
+                          <p className="text-xs font-black text-emerald-800 mb-1">ก่อนเชื่อม — แชร์ชีตให้ P-Admin ก่อนนะครับ</p>
+                          <p className="text-xs text-emerald-700 leading-relaxed">
+                            เปิด Google Sheet → กด Share → ใส่อีเมล{' '}
+                            <span
+                              className="font-black bg-white border border-emerald-300 px-1.5 py-0.5 rounded text-emerald-800 cursor-pointer select-all"
+                              onClick={() => { navigator.clipboard.writeText(PADMIN_SHEETS_EMAIL); toast('success', 'คัดลอกอีเมลแล้ว!') }}
+                              title="คลิกเพื่อคัดลอก"
+                            >{PADMIN_SHEETS_EMAIL}</span>{' '}
+                            → เลือก <strong>Editor</strong> → Send
+                          </p>
                         </div>
-                        <div>
-                          <label className="block text-xs font-bold uppercase tracking-widest text-slate-700 mb-1">Google Sheet URL (Line Bot)</label>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="col-span-2">
+                          <label className="block text-xs font-bold uppercase tracking-widest text-slate-700 mb-1">URL ของ Google Sheet ที่ต้องการ Sync</label>
                           <input value={tplGoogleSheetUrl} onChange={e => setTplGoogleSheetUrl(e.target.value)} className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-base font-black text-emerald-700 placeholder:text-emerald-300" placeholder="https://docs.google.com/spreadsheets/d/..." />
                         </div>
                         <div>
-                          <label className="block text-xs font-bold uppercase tracking-widest text-slate-700 mb-1">แถวที่เริ่มหัวตาราง (A1=1)</label>
+                          <label className="block text-xs font-bold uppercase tracking-widest text-slate-700 mb-1">ข้อมูลเริ่มที่แถวไหน (ปกติคือ 2)</label>
                           <input type="number" min="1" value={tplHeaderRow} onChange={e => setTplHeaderRow(parseInt(e.target.value)||1)} className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-base font-black text-slate-900" />
+                          <p className="text-[10px] text-slate-400 font-bold mt-1">แถว 1 = หัวตาราง, แถว 2 = ข้อมูลแรก</p>
                         </div>
                       </div>
-                      {tplWebhookUrl && (
-                        <div className="p-4 bg-slate-900 rounded-2xl border border-slate-800 animate-fadeIn">
-                          <div className="flex items-center justify-between mb-3">
-                            <span className="text-[10px] font-black uppercase text-indigo-400 tracking-widest">⚙️ Google Apps Script (Ready to Copy)</span>
-                            <button onClick={() => {
-                              const code = `// DocuReader Auto-Sync Script
-function doPost(e) {
-  const res = JSON.parse(e.postData.contents);
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  const headerRow = ${tplHeaderRow};
-  const dataArray = Array.isArray(res.data) ? res.data : (res.data ? [res.data] : []);
-  
-  dataArray.forEach(data => {
-    const lastCol = sheet.getLastColumn();
-    let headers = [];
-    if (lastCol > 0) {
-      headers = sheet.getRange(headerRow, 1, 1, lastCol).getValues()[0].map(String).filter(h => h.trim() !== "");
-    }
-    
-    Object.keys(data).forEach(k => {
-      if (!headers.includes(k)) {
-        headers.push(k);
-      }
-    });
-    
-    if (headers.length > 0) {
-      sheet.getRange(headerRow, 1, 1, headers.length).setValues([headers]);
-      const rowData = headers.map(h => data[h] === undefined ? "" : data[h]);
-      sheet.appendRow(rowData);
-    }
-  });
-  
-  return ContentService.createTextOutput("Success");
-}`;
-                              navigator.clipboard.writeText(code); toast('success', 'ก๊อปปี้โค้ดแล้ว!');
-                            }} className="text-[10px] bg-slate-800 text-white px-3 py-1.5 rounded-lg hover:bg-slate-700 font-bold transition-all flex items-center gap-1"><Copy size={10} /> คัดลอกโค้ดไปวางใน Google Sheet</button>
-                          </div>
-                          <p className="text-[10px] text-slate-400 leading-relaxed font-medium">
-                            1. ใน Google Sheet ไปที่ <span className="text-white">Extensions &gt; Apps Script</span><br/>
-                            2. ลบโค้ดเดิม แล้วแปะโค้ดนี้ลงไป<br/>
-                            3. กด <span className="text-white">Deploy &gt; New Deployment &gt; Web App</span> (เข้าถึงได้โดย: Anyone)<br/>
-                            4. นำ URL ที่ได้มาวางในช่องข้างบนนี้
-                          </p>
-                        </div>
-                      )}
                     </>
                   )}
                   <div>
@@ -1104,56 +1074,105 @@ function HowToGuide() {
         </div>
       ) : (
         <div className="space-y-6 animate-fadeUp">
+
+          {/* Steps */}
           <div className="bg-white border border-slate-200 rounded-3xl p-8">
-            <h3 className="text-lg font-headline font-black text-slate-900 mb-2">📊 วิธีเชื่อมต่อ Google Sheets (ผ่าน Webhook)</h3>
-            <p className="text-sm text-slate-700 mb-6 font-bold">ส่งข้อมูลที่ AI สกัดได้ให้ไปบันทึกต่อท้ายแถวใน Google Sheets โดยอัตโนมัติทันที</p>
-            <div className="space-y-6">
-              {[
-                { step: 1, title: 'สร้างและตั้งค่า Template', desc: 'ไปที่แท็บ "Templates" และกด "สร้างใหม่" หรือ "แก้ไข" Template เดิมที่คุณตั้งคอลัมน์ไว้แล้ว', images: ['/guide/step1-1.jpg'] },
-                { step: 2, title: 'คัดลอกโค้ด Apps Script', desc: 'ในหน้าตั้งค่า Template เมื่อคุณกรอก Webhook URL (หรือใส่ค่ามั่วๆ ไปก่อน) ระบบจะขึ้นหน้าต่างรหัส Google Apps Script สีดำ ให้กดคลิกปุ่ม "คัดลอกโค้ดไปวางใน Google Sheet"', images: ['/guide/step2-1.jpg'] },
-                { step: 3, title: 'นำไปติดตั้งใน Google Sheet', desc: 'เปิด Google Sheet ที่ต้องการใช้งาน คลิกเมนู Extensions > Apps Script คุณจะเห็นหน้าจอที่มีไฟล์ Code.gs และมีคำสั่ง `function myFunction() { }` อยู่ ให้ลบโค้ดเดิมทิ้งทั้งหมด แล้ววางโค้ดที่คัดลอกมาลงไปแทน', images: ['/guide/step3-1.jpg', '/guide/step3-2.jpg'] },
-                { step: 4, title: 'นำ Webhook URL มาใส่ระบบ (ไม่ต้องกดปุ่ม Run)', desc: 'สำคัญ: ไม่ต้องกดปุ่ม Run ใดๆ ทั้งสิ้น ให้คลิกปุ่มสีน้ำเงิน Deploy (ตั้งค่าการใช้งาน) ที่มุมขวาบน > New Deployment (การทำให้ใช้งานได้รายการใหม่) ซ้ายบนเลือกประเภทเป็น "Web App" (เว็บแอป) ตั้งค่า Who has access (ผู้มีสิทธิ์เข้าถึง) เป็น "Anyone" (ทุกคน) แล้วกด Deploy\n\n*หมายเหตุ: หากมีหน้าต่างเตือน "Google hasn\'t verified this app" (Google ยังไม่ได้ยืนยันแอปนี้) เป็นเรื่องปกติครับ ให้คลิกคำว่า "Advanced" (ขั้นสูง) ด้านล่างซ้าย แล้วคลิก "Go to Untitled project (unsafe)" เพื่อกดยอมรับสิทธิ์\n\nจากนั้นคัดลอก Web App URL กลับมาใส่ในช่อง Webhook URL ใน DocuReader แล้วกด "อัปเดต Template" เป็นอันเสร็จสิ้น!', images: ['/guide/step4-1.jpg', '/guide/step4-2.jpg', '/guide/step4-3.jpg', '/guide/step4-4.jpg', '/guide/step4-5.jpg', '/guide/step4-6.jpg'] },
-              ].map(s => (
-                <div key={s.step} className="flex gap-4">
-                  <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-black text-sm flex-shrink-0">{s.step}</div>
-                  <div className="flex-1">
-                    <h4 className="font-bold text-slate-900 text-sm">{s.title}</h4>
-                    <p className="whitespace-pre-line text-xs text-slate-600 mt-1 font-bold leading-relaxed">{s.desc}</p>
-                    {s.images && s.images.length > 0 && (
-                      <div className="mt-3 flex gap-3 flex-wrap">
-                         {s.images.map((img, i) => (
-                           <div key={i} className="relative group cursor-zoom-in" onClick={() => setLightboxImage(img)}>
-                             <img src={img} alt={`Step ${s.step}`} className="h-32 w-auto bg-slate-100 rounded-lg border border-slate-200 transition-all shadow-sm group-hover:shadow-md" />
-                             <div className="absolute inset-0 bg-black/5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                               <div className="bg-white/80 p-1.5 rounded-full"><Plus className="text-slate-700" size={16} /></div>
-                             </div>
-                           </div>
-                         ))}
-                      </div>
-                    )}
+            <h3 className="text-lg font-headline font-black text-slate-900 mb-1">📊 วิธีเชื่อมต่อ Google Sheets</h3>
+            <p className="text-sm text-slate-500 font-bold mb-6">ข้อมูลจะ sync เข้าชีตของคุณอัตโนมัติทุกครั้งที่แปลงเอกสาร ไม่ต้อง copy-paste เอง</p>
+
+            <div className="space-y-8">
+
+              {/* Step 1 */}
+              <div className="flex gap-4">
+                <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-black text-sm flex-shrink-0">1</div>
+                <div className="flex-1">
+                  <h4 className="font-black text-slate-900 text-sm mb-1">สร้าง Google Sheet และตั้งหัวตาราง</h4>
+                  <p className="text-xs text-slate-600 font-bold leading-relaxed mb-1">
+                    เปิด <span className="text-emerald-700 font-black">Google Sheets</span> แล้วสร้างไฟล์ใหม่ หรือใช้ไฟล์ที่มีอยู่แล้วก็ได้ครับ<br/>
+                    ในแถวแรก ใส่ชื่อคอลัมน์ให้ตรงกับที่ตั้งไว้ใน Template เช่น "วันที่", "ยอดรวม", "เลขที่ใบแจ้งหนี้"
+                  </p>
+                  <p className="text-[10px] text-slate-400 font-bold">💡 ชื่อคอลัมน์ต้องตรงกับใน Template ระบบถึงจะ sync ได้ถูกต้องครับ</p>
+                  {/* รูป: หน้า Google Sheet ที่มีหัวตารางแถวแรก */}
+                  <div className="mt-3 h-28 w-64 bg-slate-100 rounded-lg border-2 border-dashed border-slate-300 flex items-center justify-center text-[10px] text-slate-400 font-bold">
+                    📷 รูปตัวอย่าง Google Sheet<br/>หัวตาราง (จะใส่รูปจริงทีหลัง)
                   </div>
                 </div>
-              ))}
+              </div>
+
+              {/* Step 2 */}
+              <div className="flex gap-4">
+                <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-black text-sm flex-shrink-0">2</div>
+                <div className="flex-1">
+                  <h4 className="font-black text-slate-900 text-sm mb-1">แชร์ชีตให้ P-Admin เข้าถึงได้</h4>
+                  <p className="text-xs text-slate-600 font-bold leading-relaxed mb-3">
+                    กดปุ่ม <span className="bg-emerald-600 text-white px-2 py-0.5 rounded font-black text-[10px]">Share</span> มุมขวาบน → ช่อง "Add people" ให้ใส่อีเมลด้านล่าง → เปลี่ยนสิทธิ์เป็น <strong>Editor</strong> → กด Send
+                  </p>
+                  <div
+                    className="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-300 rounded-lg px-3 py-2 cursor-pointer hover:bg-emerald-100 transition-colors group"
+                    onClick={() => { navigator.clipboard.writeText(PADMIN_SHEETS_EMAIL); }}
+                    title="คลิกเพื่อคัดลอก"
+                  >
+                    <span className="font-black text-emerald-800 text-sm select-all">{PADMIN_SHEETS_EMAIL}</span>
+                    <Copy size={12} className="text-emerald-500 group-hover:text-emerald-700 flex-shrink-0" />
+                  </div>
+                  <p className="text-[10px] text-slate-400 font-bold mt-2">คลิกที่อีเมลด้านบนเพื่อคัดลอกได้เลยครับ</p>
+                  {/* รูป: หน้า Share dialog ของ Google Sheet */}
+                  <div className="mt-3 h-28 w-64 bg-slate-100 rounded-lg border-2 border-dashed border-slate-300 flex items-center justify-center text-[10px] text-slate-400 font-bold">
+                    📷 รูปหน้า Share → ใส่อีเมล<br/>(จะใส่รูปจริงทีหลัง)
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 3 */}
+              <div className="flex gap-4">
+                <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-black text-sm flex-shrink-0">3</div>
+                <div className="flex-1">
+                  <h4 className="font-black text-slate-900 text-sm mb-1">นำ URL ของชีตมาใส่ใน Template</h4>
+                  <p className="text-xs text-slate-600 font-bold leading-relaxed mb-1">
+                    คัดลอก URL ของ Google Sheet จาก address bar ของ browser → กลับมาที่ P-Admin → แท็บ <strong>Templates</strong> → กด "แก้ไข" Template ที่ต้องการ → วาง URL ในช่อง "URL ของ Google Sheet" → กดบันทึก
+                  </p>
+                  <p className="text-[10px] text-slate-400 font-bold">URL จะมีหน้าตาแบบนี้: <span className="text-slate-500">https://docs.google.com/spreadsheets/d/...</span></p>
+                  {/* รูป: Template editor ที่มีช่อง Google Sheet URL */}
+                  <div className="mt-3 h-28 w-64 bg-slate-100 rounded-lg border-2 border-dashed border-slate-300 flex items-center justify-center text-[10px] text-slate-400 font-bold">
+                    📷 รูปช่อง URL ใน Template<br/>(จะใส่รูปจริงทีหลัง)
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
-          <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-6">
-            <h4 className="font-bold text-indigo-900 text-sm mb-3">✨ ตัวอย่างผลลัพธ์ใน Google Sheets</h4>
-            <div className="relative group cursor-zoom-in max-w-md" onClick={() => setLightboxImage('/guide/example.jpg')}>
-              <img src="/guide/example.jpg" alt="Example Result" className="w-full h-auto bg-slate-100 rounded-lg border border-slate-200 transition-all shadow-sm group-hover:shadow-md" />
+
+          {/* Result preview */}
+          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6">
+            <h4 className="font-bold text-emerald-900 text-sm mb-3">✨ ผลลัพธ์หลังตั้งค่าเสร็จ</h4>
+            <div className="relative group cursor-zoom-in max-w-md" onClick={() => setLightboxImage('/guide/gsheet-result.jpg')}>
+              <img src="/guide/gsheet-result.jpg" alt="ตัวอย่างผลลัพธ์ใน Google Sheet" className="w-full h-auto bg-emerald-100 rounded-lg border border-emerald-200 transition-all shadow-sm group-hover:shadow-md" />
               <div className="absolute inset-0 bg-black/5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <div className="bg-white/80 p-2 rounded-full shadow-lg text-slate-700 font-bold text-xs flex items-center gap-1"><Plus size={14} /> คลิกเพื่อขยายดูตัวอย่าง</div>
+                <div className="bg-white/80 p-2 rounded-full shadow-lg text-slate-700 font-bold text-xs flex items-center gap-1"><Plus size={14} /> คลิกเพื่อขยาย</div>
               </div>
             </div>
-            <p className="text-[10px] text-indigo-700 font-bold mt-4 leading-relaxed">
-              เมื่อส่งข้อมูลสำเร็จ ข้อมูลจะไปปรากฏที่แถวถัดไปของ Google Sheets ของคุณทันที (โดยอ้างอิงจากหัวตารางที่คุณตั้งไว้ใน Template)
+            <p className="text-[10px] text-emerald-700 font-bold mt-3 leading-relaxed">
+              ทุกครั้งที่แปลงเอกสาร ข้อมูลจะไป append ต่อท้ายชีตของคุณอัตโนมัติ ไม่ต้อง export หรือ copy-paste เองครับ
             </p>
           </div>
-          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6">
-            <h4 className="font-bold text-slate-700 text-sm mb-2">ℹ️ ข้อมูลจะถูกอัปเดตเมื่อไหร่?</h4>
-            <p className="text-[10px] text-slate-500 font-bold leading-relaxed">
-              เมื่อตั้งค่า Webhook ใน Template สมบูรณ์แล้ว ทุกครั้งที่คุณอัปโหลดและประมวลผลข้อมูลในหน้า "อัปโหลด" ด้วย Template นั้นๆ ระบบ DocuReader จะตี Webhook ไปยังหน้า Google Sheet ของคุณ ให้อัปเดตข้อมูลแบบ Real-time โดยอัตโนมัติ ไม่ต้องกด Export เอง
-            </p>
+
+          {/* FAQ */}
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-3">
+            <h4 className="font-bold text-slate-700 text-sm">❓ คำถามที่พบบ่อย</h4>
+            <div>
+              <p className="text-xs font-black text-slate-700">ข้อมูลจะเข้าชีตเมื่อไหร่?</p>
+              <p className="text-[10px] text-slate-500 font-bold leading-relaxed mt-0.5">ทันทีหลังจากระบบแปลงเอกสารเสร็จครับ ทั้งจาก webapp และจาก Line Bot</p>
+            </div>
+            <div>
+              <p className="text-xs font-black text-slate-700">ลืม share ให้อีเมล P-Admin จะเกิดอะไรขึ้น?</p>
+              <p className="text-[10px] text-slate-500 font-bold leading-relaxed mt-0.5">ระบบจะแปลงเอกสารได้ปกติ แต่ข้อมูลจะไม่เข้า Google Sheet ครับ ให้กลับไป Share แล้วลองใหม่ได้เลย</p>
+            </div>
+            <div>
+              <p className="text-xs font-black text-slate-700">ใช้ Google Sheet เดียวกับหลาย Template ได้ไหม?</p>
+              <p className="text-[10px] text-slate-500 font-bold leading-relaxed mt-0.5">ได้ครับ แต่แนะนำให้ใช้คนละ Sheet หรือคนละ Tab เพื่อให้ข้อมูลไม่ปนกัน</p>
+            </div>
           </div>
+
         </div>
       )}
 

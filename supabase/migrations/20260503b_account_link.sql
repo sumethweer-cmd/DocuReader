@@ -14,6 +14,7 @@ CREATE INDEX IF NOT EXISTS idx_line_link_nonces_user_id ON line_link_nonces(user
 ALTER TABLE line_link_nonces ENABLE ROW LEVEL SECURITY;
 
 -- Authenticated users can insert their own nonces (webapp uses user JWT)
+DROP POLICY IF EXISTS "Users insert own nonces" ON line_link_nonces;
 CREATE POLICY "Users insert own nonces" ON line_link_nonces
   FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 

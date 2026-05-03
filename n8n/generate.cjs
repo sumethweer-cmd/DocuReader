@@ -96,8 +96,8 @@ return [{ json: {
 
 const pbMergePendingCode =
 `const pb = $('Parse Postback').first().json;
-const rows = $input.first().json;
-const pending = Array.isArray(rows) ? rows[0] : null;
+const rows = $input.first()?.json ?? null;
+const pending = Array.isArray(rows) ? rows[0] || null : (rows && rows.job_type ? rows : null);
 return [{ json: { ...pb, pending, pendingFound: !!pending } }];`;
 
 const pbFormatResultCode =
@@ -133,8 +133,8 @@ return [{ json: { userId: pb.userId, isError: false, flexMsg: { type: 'flex', al
 
 const pbTplMergeCode =
 `const pb = $('Parse Postback').first().json;
-const rows = $input.first().json;
-const pending = Array.isArray(rows) ? rows[0] : null;
+const rows = $input.first()?.json ?? null;
+const pending = Array.isArray(rows) ? rows[0] || null : (rows && rows.job_type ? rows : null);
 const found = !!pending;
 const meta = (pending && pending.metadata) ? pending.metadata : {};
 const draft = meta.draft || null;
@@ -153,8 +153,8 @@ return [{ json: {
 
 const pbSkipMergeCode =
 `const pb = $('Parse Postback').first().json;
-const rows = $input.first().json;
-const pending = Array.isArray(rows) ? rows[0] : null;
+const rows = $input.first()?.json ?? null;
+const pending = Array.isArray(rows) ? rows[0] || null : (rows && rows.job_type ? rows : null);
 const meta = (pending && pending.metadata) ? pending.metadata : {};
 const updated = JSON.stringify({ step: 2, metadata: { ...meta, image_skipped: true } });
 return [{ json: { ...pb, pending, patchBody: updated } }];`;
@@ -163,14 +163,14 @@ return [{ json: { ...pb, pending, patchBody: updated } }];`;
 
 const imgMergeOrgCode =
 `const event = $('Extract Event').first().json;
-const rows = $input.first().json;
-const org = Array.isArray(rows) ? rows[0] : null;
+const rows = $input.first()?.json ?? null;
+const org = Array.isArray(rows) ? rows[0] || null : (rows && rows.org_id ? rows : null);
 return [{ json: { ...event, org, orgFound: !!org } }];`;
 
 const imgClassifyCode =
 `const ctx = $('IMG: Merge Org').first().json;
-const rows = $input.first().json;
-const pending = Array.isArray(rows) ? rows[0] : null;
+const rows = $input.first()?.json ?? null;
+const pending = Array.isArray(rows) ? rows[0] || null : (rows && rows.job_type ? rows : null);
 let state = 'proceed';
 if (pending) {
   const meta = pending.metadata || {};
@@ -222,10 +222,10 @@ return [{ json: { ...ctx, templates: list, hasTemplates: list.length > 0, lineMe
 
 const txtClassifyCode =
 `const event = $('Extract Event').first().json;
-const orgRows = $('TXT: Resolve Org').first().json;
-const pendingRows = $input.first().json;
-const org = Array.isArray(orgRows) ? orgRows[0] : null;
-const pending = Array.isArray(pendingRows) ? pendingRows[0] : null;
+const orgRows = $('TXT: Resolve Org').first()?.json ?? null;
+const pendingRows = $input.first()?.json ?? null;
+const org = Array.isArray(orgRows) ? orgRows[0] || null : (orgRows && orgRows.org_id ? orgRows : null);
+const pending = Array.isArray(pendingRows) ? pendingRows[0] || null : (pendingRows && pendingRows.job_type ? pendingRows : null);
 const text = (event.messageText || '').trim().toLowerCase();
 
 let state = 'fallback';
@@ -244,8 +244,9 @@ if (state === 'fallback') {
   if (text === 'เครดิต' || text === 'credit' || text === 'credits' || text.includes('เครดิตคงเหลือ')) state = 'credits_query';
 }
 
-// Unregistered user on fallback/credits path → show account link button
-if ((state === 'fallback' || state === 'credits_query') && !org) {
+// Unregistered user checking credits → show account link button
+// fallback text goes to AI Agent so unregistered users can still ask questions
+if (state === 'credits_query' && !org) {
   state = 'not_registered';
 }
 
@@ -296,8 +297,18 @@ return [{ json: { ...ctx, draft, patchBody, confirmFlex, draftError: false } }];
 // ── Flex reply builder code nodes (avoids }} in n8n expression parser) ────────
 const buildWelcomeCode =
 `const ctx = $input.first().json;
-const flex = {type:'flex',altText:'ยินดีต้อนรับสู่ P-Admin!',contents:{type:'bubble',hero:{type:'box',layout:'vertical',paddingAll:'20px',contents:[{type:'text',text:'สวัสดีครับ!',weight:'bold',size:'xxl',align:'center'},{type:'text',text:'ผม พี่แอดมิน — AI แปลงเอกสารเป็นข้อมูล',wrap:true,align:'center',color:'#555555',size:'sm',margin:'sm'}]},body:{type:'box',layout:'vertical',spacing:'md',contents:[{type:'text',text:'ทำอะไรได้บ้าง?',weight:'bold',size:'md'},{type:'text',text:'• ส่งรูปเอกสาร → ได้ข้อมูลกลับทันที\\n• รองรับใบเสร็จ, invoice, ออเดอร์ ฯลฯ\\n• Export CSV และ sync Google Sheet\\n• พิมพ์ "สร้าง template" ให้ AI สร้างให้อัตโนมัติ',wrap:true,color:'#555555',size:'sm'}]},footer:{type:'box',layout:'vertical',spacing:'sm',contents:[{type:'button',action:{type:'uri',label:'สมัคร / เข้าสู่ระบบ',uri:'` + WEBAPP_URL + `'},style:'primary',color:'#4F46E5'}]}}};
-return [{json:{...ctx, replyMsg:{to:ctx.userId, messages:[flex]}}}];`;
+const flex = {type:'flex',altText:'ยินดีต้อนรับสู่ P-Admin!',contents:{type:'bubble',hero:{type:'box',layout:'vertical',paddingAll:'20px',contents:[{type:'text',text:'สวัสดีครับ! 👋',weight:'bold',size:'xxl',align:'center'},{type:'text',text:'ผม พี่แอดมิน — AI แปลงเอกสารเป็นข้อมูล',wrap:true,align:'center',color:'#555555',size:'sm',margin:'sm'}]},body:{type:'box',layout:'vertical',spacing:'md',contents:[{type:'text',text:'ทำอะไรได้บ้าง?',weight:'bold',size:'md'},{type:'text',text:'• ส่งรูปเอกสาร → ได้ข้อมูลกลับทันที\\n• รองรับใบเสร็จ, invoice, ออเดอร์ ฯลฯ\\n• Export CSV และ sync Google Sheet\\n• พิมพ์ "สร้าง template" ให้ AI สร้างให้อัตโนมัติ',wrap:true,color:'#555555',size:'sm'},{type:'text',text:'กดปุ่มด้านล่างเพื่อถามได้เลยครับ 👇',wrap:true,color:'#888888',size:'xs',margin:'md'}]},footer:{type:'box',layout:'vertical',spacing:'sm',contents:[{type:'button',action:{type:'uri',label:'สมัคร / เข้าสู่ระบบ',uri:'` + WEBAPP_URL + `'},style:'primary',color:'#4F46E5'}]}}};
+const qr = {items:[
+  {type:'action',action:{type:'message',label:'ทำงานยังไง?',text:'ทำงานยังไง?'}},
+  {type:'action',action:{type:'message',label:'ทำอะไรได้บ้าง?',text:'ทำอะไรได้บ้าง?'}},
+  {type:'action',action:{type:'message',label:'รองรับภาษาอื่นมั้ย?',text:'รองรับภาษาอื่นมั้ย?'}},
+  {type:'action',action:{type:'message',label:'ราคาเท่าไหร่?',text:'ราคาเท่าไหร่?'}},
+  {type:'action',action:{type:'message',label:'ทดลองฟรีได้มั้ย?',text:'ทดลองฟรีได้มั้ย?'}},
+  {type:'action',action:{type:'message',label:'เชื่อม Google Sheet ได้มั้ย?',text:'เชื่อม Google Sheet ได้มั้ย?'}},
+  {type:'action',action:{type:'message',label:'เชื่อม Google Sheet ยังไง?',text:'เชื่อม Google Sheet ยังไง?'}},
+  {type:'action',action:{type:'message',label:'📖 คู่มือการใช้งาน',text:'คู่มือการใช้งาน'}},
+]};
+return [{json:{...ctx, replyMsg:{to:ctx.userId, messages:[{...flex, quickReply:qr}]}}}];`;
 
 const buildNotRegCode =
 `const ctx = $input.first().json;
@@ -520,8 +531,9 @@ const nodes = [
     [1300, 1560]),
   code('txt-classify', 'TXT: Classify State', txtClassifyCode, [1520, 1560]),
   sw('txt-switch', 'TXT: Switch State', '={{ $json.state }}',
-    ['template_step2', 'template_command', 'credits_query', 'not_registered', 'fallback'],
-    [1740, 1560], 'none'),
+    ['template_step2', 'template_command', 'credits_query'],
+    [1740, 1560], 3),
+  ifStr('txt-reg-check', 'TXT: Reg or Fallback?', '={{ $json.state }}', 'equal', 'not_registered', [1960, 1700]),
 
   // TXT: template_step2
   code('txt-step2-prepare', 'TXT: Step2 Prepare', txtStep2PrepareCode, [1960, 1380]),
@@ -722,11 +734,14 @@ const connections = {
   'TXT: Get Pending':           { main: [[{ node: 'TXT: Classify State',  type: 'main', index: 0 }]] },
   'TXT: Classify State':        { main: [[{ node: 'TXT: Switch State',    type: 'main', index: 0 }]] },
   'TXT: Switch State':          { main: [
-    [{ node: 'TXT: Step2 Prepare',   type: 'main', index: 0 }],  // template_step2
-    [{ node: 'TXT: Cmd Org Check',   type: 'main', index: 0 }],  // template_command
-    [{ node: 'TXT: Credits Reply',   type: 'main', index: 0 }],  // credits_query
-    [{ node: 'TXT: Get Link Token',  type: 'main', index: 0 }],  // not_registered
-    [{ node: 'AI Agent',             type: 'main', index: 0 }],  // fallback
+    [{ node: 'TXT: Step2 Prepare',    type: 'main', index: 0 }],  // template_step2
+    [{ node: 'TXT: Cmd Org Check',    type: 'main', index: 0 }],  // template_command
+    [{ node: 'TXT: Credits Reply',    type: 'main', index: 0 }],  // credits_query
+    [{ node: 'TXT: Reg or Fallback?', type: 'main', index: 0 }],  // fallback (catches not_registered + true fallback)
+  ]},
+  'TXT: Reg or Fallback?':      { main: [
+    [{ node: 'TXT: Get Link Token', type: 'main', index: 0 }],  // true = not_registered
+    [{ node: 'AI Agent',            type: 'main', index: 0 }],  // false = fallback
   ]},
 
   // TXT: template_step2

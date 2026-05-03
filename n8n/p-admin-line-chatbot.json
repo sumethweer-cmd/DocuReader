@@ -116,7 +116,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const ctx = $input.first().json;\nconst flex = {type:'flex',altText:'ยินดีต้อนรับสู่ P-Admin!',contents:{type:'bubble',hero:{type:'box',layout:'vertical',paddingAll:'20px',contents:[{type:'text',text:'สวัสดีครับ!',weight:'bold',size:'xxl',align:'center'},{type:'text',text:'ผม พี่แอดมิน — AI แปลงเอกสารเป็นข้อมูล',wrap:true,align:'center',color:'#555555',size:'sm',margin:'sm'}]},body:{type:'box',layout:'vertical',spacing:'md',contents:[{type:'text',text:'ทำอะไรได้บ้าง?',weight:'bold',size:'md'},{type:'text',text:'• ส่งรูปเอกสาร → ได้ข้อมูลกลับทันที\\n• รองรับใบเสร็จ, invoice, ออเดอร์ ฯลฯ\\n• Export CSV และ sync Google Sheet\\n• พิมพ์ \"สร้าง template\" ให้ AI สร้างให้อัตโนมัติ',wrap:true,color:'#555555',size:'sm'}]},footer:{type:'box',layout:'vertical',spacing:'sm',contents:[{type:'button',action:{type:'uri',label:'สมัคร / เข้าสู่ระบบ',uri:'https://docu-reader-alpha.vercel.app'},style:'primary',color:'#4F46E5'}]}}};\nreturn [{json:{...ctx, replyMsg:{to:ctx.userId, messages:[flex]}}}];"
+        "jsCode": "const ctx = $input.first().json;\nconst flex = {type:'flex',altText:'ยินดีต้อนรับสู่ P-Admin!',contents:{type:'bubble',hero:{type:'box',layout:'vertical',paddingAll:'20px',contents:[{type:'text',text:'สวัสดีครับ! 👋',weight:'bold',size:'xxl',align:'center'},{type:'text',text:'ผม พี่แอดมิน — AI แปลงเอกสารเป็นข้อมูล',wrap:true,align:'center',color:'#555555',size:'sm',margin:'sm'}]},body:{type:'box',layout:'vertical',spacing:'md',contents:[{type:'text',text:'ทำอะไรได้บ้าง?',weight:'bold',size:'md'},{type:'text',text:'• ส่งรูปเอกสาร → ได้ข้อมูลกลับทันที\\n• รองรับใบเสร็จ, invoice, ออเดอร์ ฯลฯ\\n• Export CSV และ sync Google Sheet\\n• พิมพ์ \"สร้าง template\" ให้ AI สร้างให้อัตโนมัติ',wrap:true,color:'#555555',size:'sm'},{type:'text',text:'กดปุ่มด้านล่างเพื่อถามได้เลยครับ 👇',wrap:true,color:'#888888',size:'xs',margin:'md'}]},footer:{type:'box',layout:'vertical',spacing:'sm',contents:[{type:'button',action:{type:'uri',label:'สมัคร / เข้าสู่ระบบ',uri:'https://docu-reader-alpha.vercel.app'},style:'primary',color:'#4F46E5'}]}}};\nconst qr = {items:[\n  {type:'action',action:{type:'message',label:'ทำงานยังไง?',text:'ทำงานยังไง?'}},\n  {type:'action',action:{type:'message',label:'ทำอะไรได้บ้าง?',text:'ทำอะไรได้บ้าง?'}},\n  {type:'action',action:{type:'message',label:'รองรับภาษาอื่นมั้ย?',text:'รองรับภาษาอื่นมั้ย?'}},\n  {type:'action',action:{type:'message',label:'ราคาเท่าไหร่?',text:'ราคาเท่าไหร่?'}},\n  {type:'action',action:{type:'message',label:'ทดลองฟรีได้มั้ย?',text:'ทดลองฟรีได้มั้ย?'}},\n  {type:'action',action:{type:'message',label:'เชื่อม Google Sheet ได้มั้ย?',text:'เชื่อม Google Sheet ได้มั้ย?'}},\n  {type:'action',action:{type:'message',label:'เชื่อม Google Sheet ยังไง?',text:'เชื่อม Google Sheet ยังไง?'}},\n  {type:'action',action:{type:'message',label:'📖 คู่มือการใช้งาน',text:'คู่มือการใช้งาน'}},\n]};\nreturn [{json:{...ctx, replyMsg:{to:ctx.userId, messages:[{...flex, quickReply:qr}]}}}];"
       },
       "id": "follow-build",
       "name": "Build: Welcome",
@@ -237,7 +237,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const pb = $('Parse Postback').first().json;\nconst rows = $input.first().json;\nconst pending = Array.isArray(rows) ? rows[0] : null;\nreturn [{ json: { ...pb, pending, pendingFound: !!pending } }];"
+        "jsCode": "const pb = $('Parse Postback').first().json;\nconst rows = $input.first()?.json ?? null;\nconst pending = Array.isArray(rows) ? rows[0] || null : (rows && rows.job_type ? rows : null);\nreturn [{ json: { ...pb, pending, pendingFound: !!pending } }];"
       },
       "id": "pb-merge",
       "name": "PB: Merge Pending",
@@ -467,7 +467,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const pb = $('Parse Postback').first().json;\nconst rows = $input.first().json;\nconst pending = Array.isArray(rows) ? rows[0] : null;\nconst found = !!pending;\nconst meta = (pending && pending.metadata) ? pending.metadata : {};\nconst draft = meta.draft || null;\nreturn [{ json: {\n  ...pb,\n  pending,\n  pendingFound: found,\n  draft,\n  tplOwnerId: meta.owner_id || null,\n  tplName: draft ? draft.name : '',\n  tplColumns: draft ? draft.columns : [],\n  tplPrompt: draft ? (draft.custom_prompt || '') : '',\n} }];"
+        "jsCode": "const pb = $('Parse Postback').first().json;\nconst rows = $input.first()?.json ?? null;\nconst pending = Array.isArray(rows) ? rows[0] || null : (rows && rows.job_type ? rows : null);\nconst found = !!pending;\nconst meta = (pending && pending.metadata) ? pending.metadata : {};\nconst draft = meta.draft || null;\nreturn [{ json: {\n  ...pb,\n  pending,\n  pendingFound: found,\n  draft,\n  tplOwnerId: meta.owner_id || null,\n  tplName: draft ? draft.name : '',\n  tplColumns: draft ? draft.columns : [],\n  tplPrompt: draft ? (draft.custom_prompt || '') : '',\n} }];"
       },
       "id": "pb-tpl-merge",
       "name": "PB: Merge Tpl Pending",
@@ -731,7 +731,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const pb = $('Parse Postback').first().json;\nconst rows = $input.first().json;\nconst pending = Array.isArray(rows) ? rows[0] : null;\nconst meta = (pending && pending.metadata) ? pending.metadata : {};\nconst updated = JSON.stringify({ step: 2, metadata: { ...meta, image_skipped: true } });\nreturn [{ json: { ...pb, pending, patchBody: updated } }];"
+        "jsCode": "const pb = $('Parse Postback').first().json;\nconst rows = $input.first()?.json ?? null;\nconst pending = Array.isArray(rows) ? rows[0] || null : (rows && rows.job_type ? rows : null);\nconst meta = (pending && pending.metadata) ? pending.metadata : {};\nconst updated = JSON.stringify({ step: 2, metadata: { ...meta, image_skipped: true } });\nreturn [{ json: { ...pb, pending, patchBody: updated } }];"
       },
       "id": "pb-skip-merge",
       "name": "PB: Skip Merge",
@@ -850,7 +850,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const event = $('Extract Event').first().json;\nconst rows = $input.first().json;\nconst org = Array.isArray(rows) ? rows[0] : null;\nreturn [{ json: { ...event, org, orgFound: !!org } }];"
+        "jsCode": "const event = $('Extract Event').first().json;\nconst rows = $input.first()?.json ?? null;\nconst org = Array.isArray(rows) ? rows[0] || null : (rows && rows.org_id ? rows : null);\nreturn [{ json: { ...event, org, orgFound: !!org } }];"
       },
       "id": "img-merge-org",
       "name": "IMG: Merge Org",
@@ -988,7 +988,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const ctx = $('IMG: Merge Org').first().json;\nconst rows = $input.first().json;\nconst pending = Array.isArray(rows) ? rows[0] : null;\nlet state = 'proceed';\nif (pending) {\n  const meta = pending.metadata || {};\n  if (pending.job_type === 'template_creation' && (pending.step || 0) === 1) {\n    state = 'template_step1';\n  } else if (pending.job_type === 'extraction') {\n    const ageMs = Date.now() - new Date(pending.created_at).getTime();\n    if (ageMs < 30 * 60 * 1000) state = 'extraction_lock';\n  }\n}\nreturn [{ json: { ...ctx, pending, state } }];"
+        "jsCode": "const ctx = $('IMG: Merge Org').first().json;\nconst rows = $input.first()?.json ?? null;\nconst pending = Array.isArray(rows) ? rows[0] || null : (rows && rows.job_type ? rows : null);\nlet state = 'proceed';\nif (pending) {\n  const meta = pending.metadata || {};\n  if (pending.job_type === 'template_creation' && (pending.step || 0) === 1) {\n    state = 'template_step1';\n  } else if (pending.job_type === 'extraction') {\n    const ageMs = Date.now() - new Date(pending.created_at).getTime();\n    if (ageMs < 30 * 60 * 1000) state = 'extraction_lock';\n  }\n}\nreturn [{ json: { ...ctx, pending, state } }];"
       },
       "id": "img-classify",
       "name": "IMG: Classify State",
@@ -1458,7 +1458,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const event = $('Extract Event').first().json;\nconst orgRows = $('TXT: Resolve Org').first().json;\nconst pendingRows = $input.first().json;\nconst org = Array.isArray(orgRows) ? orgRows[0] : null;\nconst pending = Array.isArray(pendingRows) ? pendingRows[0] : null;\nconst text = (event.messageText || '').trim().toLowerCase();\n\nlet state = 'fallback';\n\nif (pending && pending.job_type === 'template_creation') {\n  const step = pending.step || 0;\n  if (step === 2) state = 'template_step2';\n}\n\nif (state === 'fallback') {\n  const templateCmds = ['สร้าง template', 'สร้างtemplate', 'new template', 'template ใหม่', 'templateใหม่', 'create template', 'สร้างtemplate'];\n  if (templateCmds.some(kw => text.includes(kw))) state = 'template_command';\n}\n\nif (state === 'fallback') {\n  if (text === 'เครดิต' || text === 'credit' || text === 'credits' || text.includes('เครดิตคงเหลือ')) state = 'credits_query';\n}\n\n// Unregistered user on fallback/credits path → show account link button\nif ((state === 'fallback' || state === 'credits_query') && !org) {\n  state = 'not_registered';\n}\n\nreturn [{ json: { ...event, org, orgFound: !!org, pending, state, credits: org ? org.credits : null } }];"
+        "jsCode": "const event = $('Extract Event').first().json;\nconst orgRows = $('TXT: Resolve Org').first()?.json ?? null;\nconst pendingRows = $input.first()?.json ?? null;\nconst org = Array.isArray(orgRows) ? orgRows[0] || null : (orgRows && orgRows.org_id ? orgRows : null);\nconst pending = Array.isArray(pendingRows) ? pendingRows[0] || null : (pendingRows && pendingRows.job_type ? pendingRows : null);\nconst text = (event.messageText || '').trim().toLowerCase();\n\nlet state = 'fallback';\n\nif (pending && pending.job_type === 'template_creation') {\n  const step = pending.step || 0;\n  if (step === 2) state = 'template_step2';\n}\n\nif (state === 'fallback') {\n  const templateCmds = ['สร้าง template', 'สร้างtemplate', 'new template', 'template ใหม่', 'templateใหม่', 'create template', 'สร้างtemplate'];\n  if (templateCmds.some(kw => text.includes(kw))) state = 'template_command';\n}\n\nif (state === 'fallback') {\n  if (text === 'เครดิต' || text === 'credit' || text === 'credits' || text.includes('เครดิตคงเหลือ')) state = 'credits_query';\n}\n\n// Unregistered user checking credits → show account link button\n// fallback text goes to AI Agent so unregistered users can still ask questions\nif (state === 'credits_query' && !org) {\n  state = 'not_registered';\n}\n\nreturn [{ json: { ...event, org, orgFound: !!org, pending, state, credits: org ? org.credits : null } }];"
       },
       "id": "txt-classify",
       "name": "TXT: Classify State",
@@ -1486,18 +1486,10 @@
             {
               "value2": "credits_query",
               "output": 2
-            },
-            {
-              "value2": "not_registered",
-              "output": 3
-            },
-            {
-              "value2": "fallback",
-              "output": 4
             }
           ]
         },
-        "fallbackOutput": "none"
+        "fallbackOutput": 3
       },
       "id": "txt-switch",
       "name": "TXT: Switch State",
@@ -1506,6 +1498,27 @@
       "position": [
         1740,
         1560
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.state }}",
+              "operation": "equal",
+              "value2": "not_registered"
+            }
+          ]
+        }
+      },
+      "id": "txt-reg-check",
+      "name": "TXT: Reg or Fallback?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1960,
+        1700
       ]
     },
     {
@@ -2735,6 +2748,17 @@
             "index": 0
           }
         ],
+        [
+          {
+            "node": "TXT: Reg or Fallback?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TXT: Reg or Fallback?": {
+      "main": [
         [
           {
             "node": "TXT: Get Link Token",
