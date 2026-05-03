@@ -130,13 +130,27 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
   }
 
   const generateInvite = async () => {
-    if (!org) return
     setGeneratingInvite(true)
-    const { error } = await supabase.from('org_invites').insert({ org_id: org.id, created_by: userProfile!.id })
-    setGeneratingInvite(false)
-    if (error) { toast('error', error.message); return }
-    toast('success', 'สร้าง invite link สำเร็จ!')
-    fetchOrg()
+    try {
+      let orgId = org?.id
+      if (!orgId) {
+        // Auto-create personal org for individual users
+        const orgName = userProfile?.email?.split('@')[0] || 'My Account'
+        const { data: newOrg, error: orgErr } = await supabase
+          .from('organizations')
+          .insert({ name: orgName, owner_id: userProfile!.id })
+          .select('id')
+          .single()
+        if (orgErr) { toast('error', orgErr.message); return }
+        orgId = newOrg.id
+      }
+      const { error } = await supabase.from('org_invites').insert({ org_id: orgId, created_by: userProfile!.id })
+      if (error) { toast('error', error.message); return }
+      toast('success', 'สร้าง code สำเร็จ! คัดลอกแล้วส่งใน Line bot ได้เลย')
+      fetchOrg()
+    } finally {
+      setGeneratingInvite(false)
+    }
   }
 
   const copyInviteLink = (token: string) => {
