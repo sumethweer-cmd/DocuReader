@@ -101,7 +101,9 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
     if (!userProfile?.id) return
     setOrgLoading(true)
     try {
-      const { data } = await supabase.from('organizations').select('*').eq('owner_id', userProfile.id).single()
+      const { data: orgRows, error: orgErr } = await supabase.from('organizations').select('*').eq('owner_id', userProfile.id).order('created_at', { ascending: true }).limit(1)
+      if (orgErr) console.error('fetchOrg error:', orgErr)
+      const data = orgRows?.[0] ?? null
       if (data) {
         setOrg(data)
         const [{ data: inv }, { data: members }, { data: lu }] = await Promise.all([
