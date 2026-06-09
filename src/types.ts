@@ -75,7 +75,8 @@ export type ExtractionTemplate = {
 
 export type TemplateColumn = {
   name: string
-  type: 'text' | 'number' | 'date' | 'currency'
+  type: 'text' | 'number' | 'date' | 'currency' | 'sequence'
+  format?: string
 }
 
 export type Document = {

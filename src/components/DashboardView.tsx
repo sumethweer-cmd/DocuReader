@@ -841,17 +841,30 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
                   </div>
                   <div className="space-y-2">
                     {tplCols.map((col, i) => (
-                      <div key={i} className="flex items-center gap-2 bg-slate-50 rounded-xl p-2 border border-slate-200">
+                      <div key={i} className="bg-slate-50 rounded-xl p-2 border border-slate-200">
+                        <div className="flex items-center gap-2">
                         <span className="text-xs font-black text-slate-400 w-6 text-center">{i + 1}</span>
                         <input value={col.name} onChange={e => updateCol(i, 'name', e.target.value)} className="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-2 text-base font-black text-slate-900 placeholder:text-slate-300" placeholder="ชื่อคอลัมน์" />
                         <select value={col.type} onChange={e => updateCol(i, 'type', e.target.value)} className="bg-white border border-slate-300 rounded-lg px-2 py-2 text-sm font-bold text-slate-900 w-28">
-                          <option value="text">ข้อความ</option><option value="number">ตัวเลข</option><option value="date">วันที่</option><option value="currency">จำนวนเงิน</option>
+                          <option value="text">ข้อความ</option><option value="number">ตัวเลข</option><option value="date">วันที่</option><option value="currency">จำนวนเงิน</option><option value="sequence">ลำดับ</option>
                         </select>
                         <div className="flex gap-0.5">
                           <button onClick={() => moveCol(i, -1)} className="p-1 text-slate-300 hover:text-slate-600"><ArrowUp size={12} /></button>
                           <button onClick={() => moveCol(i, 1)} className="p-1 text-slate-300 hover:text-slate-600"><ArrowDown size={12} /></button>
                         </div>
                         {tplCols.length > 1 && <button onClick={() => removeCol(i)} className="p-1 text-slate-300 hover:text-rose-500"><X size={14} /></button>}
+                        </div>
+                        {col.type === 'sequence' && (
+                          <div className="mt-2 ml-8 flex items-center gap-2">
+                            <input
+                              value={col.format || '{MM}/{NNN}'}
+                              onChange={e => updateCol(i, 'format', e.target.value)}
+                              className="flex-1 bg-white border border-indigo-200 rounded-lg px-3 py-1.5 text-sm font-bold text-indigo-700 placeholder:text-slate-300"
+                              placeholder="{MM}/{NNN}"
+                            />
+                            <p className="text-[10px] text-slate-400 font-bold whitespace-nowrap">{'{MM}'} เดือน · {'{YYYY}'} ปี · {'{NNN}'} ลำดับ</p>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

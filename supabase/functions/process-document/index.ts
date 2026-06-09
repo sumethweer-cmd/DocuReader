@@ -60,10 +60,11 @@ Deno.serve(async (req: Request) => {
     if (templateId) {
       const { data: template } = await adminSupabase.from('extraction_templates').select('columns, custom_prompt, webhook_url, header_row_index, google_sheet_url').eq('id', templateId).single();
       if (template?.columns) {
-        const cols = template.columns as { name: string; type: string }[];
+        const cols = template.columns as { name: string; type: string; format?: string }[];
         templateColumns = cols;
+        const aiCols = cols.filter((c) => c.type !== 'sequence');
         columnsPrompt = 'Extract ONLY these fields from the content:\\n' +
-                        cols.map((c: { name: string; type: string }) => '- \"' + c.name + '\" (type: ' + c.type + ')').join('\\n') +
+                        aiCols.map((c) => '- \"' + c.name + '\" (type: ' + c.type + ')').join('\\n') +
                         '\\n\\nReturn the data as a JSON array of objects with these exact field names as keys.';
       }
       if (template?.custom_prompt) {
