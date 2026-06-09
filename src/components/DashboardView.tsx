@@ -775,7 +775,7 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
                         {t.description && <p className="text-xs text-slate-500 mt-0.5 font-bold">{t.description}</p>}
                         <div className="flex items-center gap-2 mt-1">
                           {t.webhook_url && <span className="text-[8px] bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded-full font-black uppercase tracking-widest">Active Webhook</span>}
-                          {t.custom_prompt && <p className="text-[10px] text-amber-600 font-bold truncate">💡 Prompt: {t.custom_prompt}</p>}
+                          {t.custom_prompt && <p className="text-[10px] text-amber-600 font-bold leading-relaxed break-words whitespace-pre-wrap mt-1">💡 {t.custom_prompt}</p>}
                         </div>
                         <div className="flex gap-1 mt-2 flex-wrap">{(t.columns as TemplateColumn[]).map((c, ci) => <span key={ci} className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-bold">{c.name}</span>)}</div>
                       </div>
