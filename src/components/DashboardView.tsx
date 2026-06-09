@@ -742,7 +742,7 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
                       ))}
                     </div>
                   </div>
-                  <div className="grid md:grid-cols-3 gap-4">
+                  <div className="grid md:grid-cols-3 gap-4 max-h-72 overflow-y-auto pr-1">
                     {PRESETS.filter(p => templateCategory === 'all' || p.category === templateCategory).map((p, i) => (
                       <button key={i} onClick={() => usePreset(p)} className="bg-white border border-slate-200 rounded-3xl p-6 text-left hover:border-indigo-400 hover:shadow-xl hover:shadow-indigo-50/50 transition-all group relative overflow-hidden animate-fadeUp" style={{ animationDelay: `${i * 50}ms` }}>
                         <div className="flex justify-between items-start mb-2">
