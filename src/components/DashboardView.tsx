@@ -7,7 +7,7 @@ import type { View, UserProfile, ExtractionTemplate, TemplateColumn, Document } 
 type DashTab = 'upload' | 'templates' | 'history' | 'howto' | 'team'
 
 // TODO: อัปเดตอีเมลนี้เมื่อ setup Google account สำหรับ P-Admin แล้ว
-const PADMIN_SHEETS_EMAIL = 'padmin.sync@gmail.com'
+const PADMIN_SHEETS_EMAIL = 'admin-head@p-admin-498907.iam.gserviceaccount.com'
 
 const PRESETS: { name: string; desc: string; columns: TemplateColumn[]; tier: 'Starter' | 'Pro'; category: string; custom_prompt?: string }[] = [
   // FINANCE
@@ -61,7 +61,8 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
   const [processingIndex, setProcessingIndex] = useState(-1)
   const [fileStatuses, setFileStatuses] = useState<('waiting' | 'processing' | 'done' | 'error')[]>([])
   const [result, setResult] = useState<Record<string, unknown>[] | null>(null)
-  const [resultMeta, setResultMeta] = useState<{ credits_used: number; credits_remaining: number; tokens_used: number } | null>(null)
+  const [resultMeta, setResultMeta] = useState<{ credits_used: number; credits_remaining: number; tokens_used: number; sheet_synced?: boolean; sheet_error?: string } | null>(null)
+  const [syncingSheet, setSyncingSheet] = useState(false)
   const [docs, setDocs] = useState<Document[]>([])
 
   const [isDragging, setIsDragging] = useState(false)
@@ -268,8 +269,9 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
         }
         if (!Array.isArray(parsed)) parsed = [parsed]
         setResult(parsed)
-        setResultMeta({ credits_used: data.credits_used, credits_remaining: data.credits_remaining, tokens_used: data.tokens_used })
-        toast('success', `สำเร็จ! ใช้ ${data.credits_used} เครดิต`)
+        setResultMeta({ credits_used: data.credits_used, credits_remaining: data.credits_remaining, tokens_used: data.tokens_used, sheet_synced: data.sheet_synced, sheet_error: data.sheet_error })
+        if (data.sheet_synced) toast('success', `สำเร็จ! ใช้ ${data.credits_used} เครดิต · Sync Sheet แล้ว`)
+        else toast('success', `สำเร็จ! ใช้ ${data.credits_used} เครดิต`)
       } else {
         // Multi-file mode
         const statuses: ('waiting' | 'processing' | 'done' | 'error')[] = uploadFiles.map(() => 'waiting' as const)
@@ -361,6 +363,28 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
     if (failedIndices.length === 0) return
     for (const idx of failedIndices) {
       await retryFile(idx)
+    }
+  }
+
+  const handleSyncSheet = async () => {
+    if (!result || !selectedTemplate) return
+    setSyncingSheet(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('กรุณาเข้าสู่ระบบใหม่')
+      const res = await fetch(`https://sdnghecdrsukdgbxsjfl.supabase.co/functions/v1/sync-to-sheet`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ template_id: selectedTemplate, data: result })
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Sync ล้มเหลว')
+      setResultMeta(prev => prev ? { ...prev, sheet_synced: true, sheet_error: undefined } : prev)
+      toast('success', 'Sync Google Sheet สำเร็จ!')
+    } catch (err) {
+      toast('error', (err as Error).message)
+    } finally {
+      setSyncingSheet(false)
     }
   }
 
@@ -663,9 +687,19 @@ export default function DashboardView({ userProfile, setView, refreshProfile }: 
                           <button onClick={retryAllFailed} disabled={processing} className="flex items-center gap-2 bg-amber-50 text-amber-700 border border-amber-200 font-bold text-xs px-4 py-2 rounded-xl hover:bg-amber-100"><RotateCcw size={14} /> Retry ทั้งหมด ({fileStatuses.filter(s => s === 'error').length})</button>
                         )}
                         <button onClick={() => exportCSV(result)} className="flex items-center gap-2 bg-slate-100 text-slate-600 font-bold text-xs px-4 py-2 rounded-xl hover:bg-slate-200"><Download size={14} /> CSV</button>
-                        {hasGSheet && (
-                          <button onClick={() => setTab('howto')} className="flex items-center gap-2 bg-emerald-600 text-white font-bold text-xs px-4 py-2 rounded-xl hover:bg-emerald-700 animate-fadeUp"><ExternalLink size={14} /> Sync Google Sheet</button>
-                        )}
+                        {hasGSheet && (() => {
+                          const tpl = templates.find(t => t.id === selectedTemplate)
+                          if (!tpl?.google_sheet_url) return null
+                          if (resultMeta?.sheet_synced) return (
+                            <span className="flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-xs px-4 py-2 rounded-xl"><CheckCircle2 size={14} /> Synced แล้ว</span>
+                          )
+                          return (
+                            <button onClick={handleSyncSheet} disabled={syncingSheet} className="flex items-center gap-2 bg-emerald-600 text-white font-bold text-xs px-4 py-2 rounded-xl hover:bg-emerald-700 disabled:opacity-50 animate-fadeUp">
+                              {syncingSheet ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <ExternalLink size={14} />}
+                              {syncingSheet ? 'กำลัง Sync...' : (resultMeta?.sheet_error ? 'Retry Sync' : 'Sync Google Sheet')}
+                            </button>
+                          )
+                        })()}
                       </div>
                   </div>
                   <div className="overflow-x-auto rounded-xl border border-slate-200">

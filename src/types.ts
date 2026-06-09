@@ -67,6 +67,7 @@ export type ExtractionTemplate = {
   description: string
   custom_prompt?: string | null
   webhook_url?: string | null
+  google_sheet_url?: string | null
   header_row_index?: number
   is_default: boolean
   created_at: string
