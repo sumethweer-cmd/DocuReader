@@ -119,7 +119,7 @@ Deno.serve(async (req: Request) => {
     const geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/' + aiConfig.model_name + ':generateContent?key=' + aiConfig.api_key;
     const geminiReq = {
       contents: [{ parts: geminiContentParts }],
-      generationConfig: { temperature: 0.1, maxOutputTokens: 8192 }
+      generationConfig: { temperature: 0.1, maxOutputTokens: 65536 }
     };
 
     const geminiRes = await fetch(geminiUrl, {
